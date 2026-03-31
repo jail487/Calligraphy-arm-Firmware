@@ -1,0 +1,4 @@
+../Middleware/MicroROS/Src/microros_stubs.c:11:8:__aeabi_read_tp	4	static
+../Middleware/MicroROS/Src/microros_stubs.c:23:10:__atomic_load_8	24	static
+../Middleware/MicroROS/Src/microros_stubs.c:32:6:__atomic_store_8	24	static
+../Middleware/MicroROS/Src/microros_stubs.c:39:10:__atomic_exchange_8	32	static

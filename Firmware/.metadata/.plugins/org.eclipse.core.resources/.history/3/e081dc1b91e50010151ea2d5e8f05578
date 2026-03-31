@@ -1,0 +1,282 @@
+/**
+ * @file nidec_motor_driver.c
+ * @brief Nidec 馬達驅動實作 (v2.0)
+ * @details 支援 24H702U030 (Freq) 與 24H220Q231 (PWM)，含編碼器與減速比計算
+ */
+
+#include "nidec_motor_driver.h"
+#include <math.h>
+
+// ==========================================================
+// 外部 Timer Handle 參照
+// 請確認 main.c 中 CubeMX 生成的變數名稱
+// ==========================================================
+extern TIM_HandleTypeDef htim2; // 13-pin 速度控制 PWM (PA5)
+extern TIM_HandleTypeDef htim3; // 8-pin  速度控制 PWM (PB4)
+
+// [新增] 編碼器用的 Timer (需在 CubeMX 開啟 Encoder Mode)
+extern TIM_HandleTypeDef htim1; // 假設 8-pin Encoder 接 TIM1 (PA8/PA9)
+extern TIM_HandleTypeDef htim4; // 假設 13-pin Encoder 接 TIM4 (PB6/PB7)
+
+// ==========================================================
+// 全域馬達物件實體化
+// ==========================================================
+Motor_t motor_joint_13pin;
+Motor_t motor_joint_8pin;
+
+
+// ==========================================================
+// 私有輔助函式 (Helper)
+// ==========================================================
+
+static uint32_t Get_Timer_Input_Clock(TIM_HandleTypeDef *htim) {
+    // 簡化假設：使用 APB1 Timer (時脈 = PCLK1 * 2)
+    return HAL_RCC_GetPCLK1Freq() * 2;
+}
+
+// ==========================================================
+// 類型 1: 13-Pin 馬達實作 (頻率控制)
+// ==========================================================
+static void Impl_Freq13Pin_SetSpeed(Motor_t *self, int32_t target_rpm) {
+    if (target_rpm == 0) {
+        __HAL_TIM_SET_COMPARE(self->config.htim_pwm, self->config.tim_channel, 0);
+        return;
+    }
+
+    bool cw = (target_rpm >= 0);
+    // 假設 Low = CW
+    HAL_GPIO_WritePin(self->config.dir_port, self->config.dir_pin,
+                      cw ? GPIO_PIN_RESET : GPIO_PIN_SET);
+
+    uint32_t abs_rpm = (uint32_t)(cw ? target_rpm : -target_rpm);
+    if (abs_rpm > self->config.max_rpm) abs_rpm = self->config.max_rpm;
+
+    // Freq = RPM * 400 / 60
+    uint32_t target_freq = (abs_rpm * 400) / 60;
+    if (target_freq < 100) target_freq = 100;
+
+    uint32_t timer_clk = Get_Timer_Input_Clock(self->config.htim_pwm);
+    uint32_t arr = (timer_clk / target_freq) - 1;
+
+    __HAL_TIM_SET_AUTORELOAD(self->config.htim_pwm, arr);
+    __HAL_TIM_SET_COMPARE(self->config.htim_pwm, self->config.tim_channel, arr / 2);
+
+    if (self->is_enabled) {
+        HAL_TIM_PWM_Start(self->config.htim_pwm, self->config.tim_channel);
+    }
+}
+
+static void Impl_Freq13Pin_SetEnable(Motor_t *self, bool enable) {
+    // START Pin: High = Enable
+    HAL_GPIO_WritePin(self->config.enable_port, self->config.enable_pin,
+                      enable ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    if (enable) {
+        HAL_TIM_PWM_Start(self->config.htim_pwm, self->config.tim_channel);
+    } else {
+        HAL_TIM_PWM_Stop(self->config.htim_pwm, self->config.tim_channel);
+    }
+}
+
+const MotorOps_t Ops_Freq13Pin = {
+    .set_speed  = Impl_Freq13Pin_SetSpeed,
+    .set_enable = Impl_Freq13Pin_SetEnable
+};
+
+
+// ==========================================================
+// 類型 2: 8-Pin 馬達實作 (PWM Duty 控制)
+// ==========================================================
+static void Impl_PWM8Pin_SetSpeed(Motor_t *self, int32_t target_rpm) {
+    bool cw = (target_rpm >= 0);
+    // 假設 High = CW
+    HAL_GPIO_WritePin(self->config.dir_port, self->config.dir_pin,
+                      cw ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    uint32_t abs_rpm = (uint32_t)(cw ? target_rpm : -target_rpm);
+    if (abs_rpm > self->config.max_rpm) abs_rpm = self->config.max_rpm;
+
+    float speed_ratio = (float)abs_rpm / (float)self->config.max_rpm;
+    uint32_t period = __HAL_TIM_GET_AUTORELOAD(self->config.htim_pwm);
+
+    // Low Active: Max Speed -> CCR=0
+    uint32_t ccr_val = (uint32_t)(period * (1.0f - speed_ratio));
+
+    __HAL_TIM_SET_COMPARE(self->config.htim_pwm, self->config.tim_channel, ccr_val);
+}
+
+static void Impl_PWM8Pin_SetEnable(Motor_t *self, bool enable) {
+    // BRAKE Pin: Low = Brake (Stop), High = Run
+    HAL_GPIO_WritePin(self->config.enable_port, self->config.enable_pin,
+                      enable ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    if (enable) {
+        HAL_TIM_PWM_Start(self->config.htim_pwm, self->config.tim_channel);
+    } else {
+        uint32_t period = __HAL_TIM_GET_AUTORELOAD(self->config.htim_pwm);
+        __HAL_TIM_SET_COMPARE(self->config.htim_pwm, self->config.tim_channel, period);
+    }
+}
+
+const MotorOps_t Ops_PWM8Pin = {
+    .set_speed  = Impl_PWM8Pin_SetSpeed,
+    .set_enable = Impl_PWM8Pin_SetEnable
+};
+
+
+// ==========================================================
+// 3. 公開 API 實作
+// ==========================================================
+
+void Motor_Init(Motor_t *motor) {
+    if (motor->type == MOTOR_TYPE_FREQ_13PIN) {
+        motor->ops = &Ops_Freq13Pin;
+    } else if (motor->type == MOTOR_TYPE_PWM_8PIN) {
+        motor->ops = &Ops_PWM8Pin;
+    }
+
+    motor->is_enabled = false;
+    motor->current_rpm_cmd = 0;
+
+    // 初始化編碼器狀態
+    motor->total_pulse_count = 0;
+    motor->last_counter_val = 0;
+
+    // 啟動硬體 Timer 的 Encoder Mode
+    if (motor->config.htim_encoder != NULL) {
+        HAL_TIM_Encoder_Start(motor->config.htim_encoder, TIM_CHANNEL_ALL);
+        // 重置硬體計數器為 0 (或中間值，視習慣而定，這裡設 0)
+        __HAL_TIM_SET_COUNTER(motor->config.htim_encoder, 0);
+    }
+
+    if (motor->ops && motor->ops->set_enable) {
+        motor->ops->set_enable(motor, false);
+    }
+}
+
+// [重要功能] 讀取編碼器並處理溢位 (Wrap-around)
+void Motor_Update(Motor_t *motor) {
+    if (motor->config.htim_encoder == NULL) return;
+
+    // 1. 讀取當前硬體計數器
+    uint32_t current_cnt = __HAL_TIM_GET_COUNTER(motor->config.htim_encoder);
+    uint32_t period = __HAL_TIM_GET_AUTORELOAD(motor->config.htim_encoder); // 也就是 ARR
+
+    // 2. 計算與上次的變化量 (Delta)
+    int32_t delta = (int32_t)current_cnt - (int32_t)motor->last_counter_val;
+
+    // 3. 處理溢位 (Handle Overflow/Underflow)
+    // 假設變化量不會瞬間超過半圈 (ARR/2)。如果超過，代表發生了溢位。
+    // 例如 ARR=65535, 從 65530 變成 5 -> delta = -65525 -> 實際是 +10
+    if (delta > (int32_t)(period / 2)) {
+        delta -= (period + 1);
+    } else if (delta < -(int32_t)(period / 2)) {
+        delta += (period + 1);
+    }
+
+    // 4. 更新累計值與記錄
+    motor->total_pulse_count += delta;
+    motor->last_counter_val = current_cnt;
+}
+
+float Motor_GetAngle(Motor_t *motor) {
+    // 檢查除數是否為 0
+    if (motor->config.gear_ratio == 0.0f || motor->config.encoder_ppr == 0.0f) {
+        return 0.0f;
+    }
+
+    // STM32 Encoder Mode x4 模式 (上下數都計數)
+    // 馬達轉一圈的 Pulse 數 = PPR * 4
+    float pulses_per_motor_rev = motor->config.encoder_ppr * 4.0f;
+
+    // 總輸出軸轉數 = 總 Pulse / (馬達每圈Pulse * 減速比)
+    float output_revs = (float)motor->total_pulse_count / (pulses_per_motor_rev * motor->config.gear_ratio);
+
+    // 轉換為角度
+    return output_revs * 360.0f;
+}
+
+void Motor_ResetEncoder(Motor_t *motor) {
+    motor->total_pulse_count = 0;
+    if (motor->config.htim_encoder != NULL) {
+        __HAL_TIM_SET_COUNTER(motor->config.htim_encoder, 0);
+        motor->last_counter_val = 0;
+    }
+}
+
+void Motor_SetSpeed(Motor_t *motor, int32_t rpm) {
+    motor->current_rpm_cmd = rpm;
+    if (motor->is_enabled && motor->ops && motor->ops->set_speed) {
+        motor->ops->set_speed(motor, rpm);
+    }
+}
+
+void Motor_Start(Motor_t *motor) {
+    motor->is_enabled = true;
+    if (motor->ops && motor->ops->set_enable) {
+        motor->ops->set_enable(motor, true);
+    }
+    Motor_SetSpeed(motor, motor->current_rpm_cmd);
+}
+
+void Motor_Stop(Motor_t *motor) {
+    motor->is_enabled = false;
+    Motor_SetSpeed(motor, 0);
+    if (motor->ops && motor->ops->set_enable) {
+        motor->ops->set_enable(motor, false);
+    }
+}
+
+// ==========================================================
+// 4. 系統配置函式
+// ==========================================================
+
+void Motor_System_Config(void) {
+
+    // --- 13-Pin 馬達配置 ---
+    motor_joint_13pin.type = MOTOR_TYPE_FREQ_13PIN;
+
+    // 速度 Timer
+    motor_joint_13pin.config.htim_pwm = &htim2;
+    motor_joint_13pin.config.tim_channel = TIM_CHANNEL_1; // PA5
+
+    // [新增] Encoder Timer (假設用 TIM4)
+    motor_joint_13pin.config.htim_encoder = &htim4; // PB6, PB7
+
+    // GPIO
+    motor_joint_13pin.config.enable_port = GPIOC;
+    motor_joint_13pin.config.enable_pin = GPIO_PIN_1; // START
+    motor_joint_13pin.config.dir_port = GPIOC;
+    motor_joint_13pin.config.dir_pin = GPIO_PIN_2;    // DIR
+
+    // 參數
+    motor_joint_13pin.config.max_rpm = 6000;
+    motor_joint_13pin.config.encoder_ppr = 100.0f;  // Nidec 規格書值
+    motor_joint_13pin.config.gear_ratio = 50.0f;    // [請依實際減速比修改] 假設 50:1
+
+    Motor_Init(&motor_joint_13pin);
+
+
+    // --- 8-Pin 馬達配置 ---
+    motor_joint_8pin.type = MOTOR_TYPE_PWM_8PIN;
+
+    // 速度 Timer
+    motor_joint_8pin.config.htim_pwm = &htim3;
+    motor_joint_8pin.config.tim_channel = TIM_CHANNEL_1; // PB4
+
+    // [新增] Encoder Timer (假設用 TIM1)
+    motor_joint_8pin.config.htim_encoder = &htim1; // PA8, PA9
+
+    // GPIO
+    motor_joint_8pin.config.enable_port = GPIOC;
+    motor_joint_8pin.config.enable_pin = GPIO_PIN_4; // BRAKE
+    motor_joint_8pin.config.dir_port = GPIOC;
+    motor_joint_8pin.config.dir_pin = GPIO_PIN_5;    // DIR
+
+    // 參數
+    motor_joint_8pin.config.max_rpm = 6300;
+    motor_joint_8pin.config.encoder_ppr = 100.0f; // Nidec 規格書值
+    motor_joint_8pin.config.gear_ratio = 30.0f;   // [請依實際減速比修改] 假設 30:1
+
+    Motor_Init(&motor_joint_8pin);
+}

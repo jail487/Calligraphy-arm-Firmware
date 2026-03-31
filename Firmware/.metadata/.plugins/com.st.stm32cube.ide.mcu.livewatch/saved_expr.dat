@@ -1,0 +1,13 @@
+test_target_rpm_m1
+test_target_rpm_m2
+motor_joint_13pin
+test_mode
+test_mode_selection
+pid_target_theta1
+real_theta1
+real_theta2
+real_theta3
+real_rpm1
+real_rpm2
+real_rpm3
+pid_target_theta1

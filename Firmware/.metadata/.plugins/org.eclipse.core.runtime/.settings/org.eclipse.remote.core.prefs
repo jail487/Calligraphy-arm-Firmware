@@ -1,0 +1,11 @@
+connections/org.eclipse.remote.serial.core.connectionType/motor+monitor/serial.baudRate=11
+connections/org.eclipse.remote.serial.core.connectionType/motor+monitor/serial.byteSize=3
+connections/org.eclipse.remote.serial.core.connectionType/motor+monitor/serial.parity=0
+connections/org.eclipse.remote.serial.core.connectionType/motor+monitor/serial.portName=/dev/ttyACM0
+connections/org.eclipse.remote.serial.core.connectionType/motor+monitor/serial.stopBits=0
+connections/org.eclipse.remote.serial.core.connectionType/motor/serial.baudRate=11
+connections/org.eclipse.remote.serial.core.connectionType/motor/serial.byteSize=3
+connections/org.eclipse.remote.serial.core.connectionType/motor/serial.parity=0
+connections/org.eclipse.remote.serial.core.connectionType/motor/serial.portName=/dev/ttyACM0
+connections/org.eclipse.remote.serial.core.connectionType/motor/serial.stopBits=0
+eclipse.preferences.version=1

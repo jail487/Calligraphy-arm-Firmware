@@ -1,0 +1,12 @@
+../Application/Inc/pid_controller.hpp:46:11:float PositionController::update(float, float, float, float, float)	7
+../Application/Src/robot_arm_core.cpp:78:10:void TrapezoidalPlanner::update(float, float)	10
+../Application/Src/robot_arm_core.cpp:200:17:void Robot_Init()	1
+../Application/Src/robot_arm_core.cpp:224:17:void Robot_SetTargetPosition(float, float, float)	1
+../Application/Src/robot_arm_core.cpp:234:17:void Robot_SetTestMode(bool)	2
+../Application/Src/robot_arm_core.cpp:244:17:void Robot_SetTestSpeed(int32_t, int32_t, int32_t)	1
+../Application/Src/robot_arm_core.cpp:251:17:void Robot_SetTargetAngles(float, float)	1
+../Application/Src/robot_arm_core.cpp:256:17:void Robot_SetTargetAngles3(float, float, float)	1
+../Application/Src/robot_arm_core.cpp:261:17:void Robot_Loop(float)	6
+../Application/Src/robot_arm_core.cpp:344:17:void Robot_PID_Loop(float)	1
+../Application/Src/robot_arm_core.cpp:388:1:cpp)	1
+../Application/Src/robot_arm_core.cpp:388:1:cpp)	3
