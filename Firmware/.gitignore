@@ -21,3 +21,7 @@ doghead_arm/.vscode/
 # Ignore OS files
 Thumbs.db
 Desktop.ini
+
+# Manually cloned external dependencies
+doghead_arm/micro_ros_stm32cubemx_utils/
+
