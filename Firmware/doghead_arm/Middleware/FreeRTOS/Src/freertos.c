@@ -95,6 +95,11 @@ void ControlTask(void *argument)
   const int32_t m4_spd_high = 300;
   const int32_t m4_spd_mid_neg = -200;
 
+  // 開機歸零搜尋速度：朝低角度方向慢慢轉
+  const int32_t home_search_rpm_m1 = -100;
+  const int32_t home_search_rpm_m2 = -100;
+  const int32_t home_search_rpm_m3 = -100;
+
   // 在任務開始執行後，才啟動 TIM6 中斷，確保 xControlTaskHandle 已就緒且 OS 已運行
   HAL_TIM_Base_Start_IT(&htim6);
 
@@ -102,17 +107,61 @@ void ControlTask(void *argument)
   {
     // 等待硬體 TIM6 中斷的通知 (阻塞等待，極低延遲)
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+    // ========== 開機歸零流程 ========== 
+    // 只要還沒三軸校正完成，就先慢速搜尋微動開關
+    if (Robot_IsHomingActive()) {
+      // 先讀取編碼器，讓 Live Expressions 與回授保持更新
+      Motor_Update(&motor_joint_13pin);
+      Motor_Update(&motor_joint_13pin_2);
+      Motor_Update(&motor_joint_13pin_3);
+
+      real_theta1 = Motor_GetAngle(&motor_joint_13pin);
+      real_theta2 = Motor_GetAngle(&motor_joint_13pin_2);
+      real_theta3 = Motor_GetAngle(&motor_joint_13pin_3);
+
+      real_rpm1 = Motor_GetVelocity(&motor_joint_13pin);
+      real_rpm2 = Motor_GetVelocity(&motor_joint_13pin_2);
+      real_rpm3 = Motor_GetVelocity(&motor_joint_13pin_3);
+
+      // 如果開關已經被壓住，即使沒有邊沿中斷，也直接做校正
+      if (!homing_joint1_done && HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10) == GPIO_PIN_RESET) {
+        Robot_HandleHomeSwitch(GPIO_PIN_10);
+      }
+      if (!homing_joint2_done && HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == GPIO_PIN_RESET) {
+        Robot_HandleHomeSwitch(GPIO_PIN_11);
+      }
+      if (!homing_joint3_done && HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_12) == GPIO_PIN_RESET) {
+        Robot_HandleHomeSwitch(GPIO_PIN_12);
+      }
+
+      // 只讓尚未校正完成的軸持續慢速移動
+      Motor_Start(&motor_joint_13pin);
+      Motor_Start(&motor_joint_13pin_2);
+      Motor_Start(&motor_joint_13pin_3);
+
+      Motor_SetSpeed(&motor_joint_13pin, homing_joint1_done ? 0 : home_search_rpm_m1);
+      Motor_SetSpeed(&motor_joint_13pin_2, homing_joint2_done ? 0 : home_search_rpm_m2);
+      Motor_SetSpeed(&motor_joint_13pin_3, homing_joint3_done ? 0 : home_search_rpm_m3);
+
+      real_rpm1 = Motor_GetVelocity(&motor_joint_13pin);
+      real_rpm2 = Motor_GetVelocity(&motor_joint_13pin_2);
+      real_rpm3 = Motor_GetVelocity(&motor_joint_13pin_3);
+
+      continue;
+    }
     
     // ========== 測試模式判斷 ==========
-    // test_mode_selection == 0: PID 控制模式
+    // test_mode_selection == 0: IK + PID 控制模式
     // test_mode_selection >= 1: 測試模式（純轉速控制）
     if (test_mode_selection == 0) {
-        // PID 模式：使用 PID + 前饋控制，不含運動學
-        // 同步 Live Expressions 的目標角度到 Robot Core
-        Robot_SetTargetAngles3(pid_target_theta1, pid_target_theta2, pid_target_theta3);
-        Robot_PID_Loop(0.001f);
+      // IK 模式：
+      // 使用 Live Expressions 的 pose_x/pose_y/pose_z 作為末端座標 (X, Y, Z)
+      // 再走 Robot_Loop 內的 solveIK3D + PID 完整流程
+      Robot_SetTargetPosition(pose_x, pose_y, pose_z);
+      Robot_Loop(0.001f);
 
-        // 更新實際轉速回授 (PID Mode)
+      // 更新實際轉速回授
         real_rpm1 = Motor_GetVelocity(&motor_joint_13pin);
         real_rpm2 = Motor_GetVelocity(&motor_joint_13pin_2);
         real_rpm3 = Motor_GetVelocity(&motor_joint_13pin_3);

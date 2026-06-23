@@ -29,6 +29,10 @@ volatile float real_theta1 = 0.0f;
 volatile float real_theta2 = 0.0f;
 volatile float real_theta3 = 0.0f;
 
+volatile float real_x = 0.0f;
+volatile float real_y = 0.0f;
+volatile float real_z = 0.0f;
+
 volatile float real_rpm1 = 0.0f;
 volatile float real_rpm2 = 0.0f;
 volatile float real_rpm3 = 0.0f;
@@ -37,14 +41,27 @@ volatile float pid_output_rpm1 = 0.0f;
 volatile float pid_output_rpm2 = 0.0f;
 volatile float pid_output_rpm3 = 0.0f;
 
+volatile bool robot_homing_active = true;
+volatile bool robot_homing_done = false;
+volatile bool homing_joint1_done = false;
+volatile bool homing_joint2_done = false;
+volatile bool homing_joint3_done = false;
+volatile bool homing_trigger_pin10 = false;
+volatile bool homing_trigger_pin11 = false;
+volatile bool homing_trigger_pin12 = false;
+
+volatile float target_angle1_deg = 0.0f;
+volatile float target_angle2_deg = 0.0f;
+volatile float target_angle3_deg = 0.0f;
+
 // ==========================================================
 // 機構參數設定 (請依照實際硬體測量修改！)
 // 單位: mm
 // ==========================================================
 // 假設五連桿參數
-#define LINK_L1  100.0f  // 主動臂 (連接馬達)
-#define LINK_L2  150.0f  // 從動臂 (連接末端)
-#define MOTOR_DIST_D 60.0f // 兩馬達間距
+#define LINK_L1  120.0f  // 主動臂 (連接馬達)
+#define LINK_L2  140.0f  // 從動臂 (連接末端)
+#define MOTOR_DIST_D 44.0f // 兩馬達間距
 
 // 建立運動學解算器實體
 FiveBarKinematics kinematics(LINK_L1, LINK_L2, MOTOR_DIST_D);
@@ -60,7 +77,7 @@ public:
         _current_pos = 0.0f;
         _current_vel = 0.0f;
         _target_pos = 0.0f;
-        _max_vel = 90.0f; // deg/s   <-- [驗證用] 降低速度，原 180
+        _max_vel = 90.0f; // deg/s = 0.25 rps (過減速機後的關節輸出軸)
         _max_acc = 180.0f; // deg/s^2 <-- [驗證用] 降低加速度 (溫和模式)，原 360
     }
 
@@ -173,9 +190,10 @@ PositionController joint2_pid(5.0f, 0.1f, 0.0f, 1.0f, 0.1f, 3000.0f);
 PositionController joint3_pid(8.0f, 0.2f, 0.0f, 1.0f, 0.15f, 4000.0f);
 
 // 測試目標 (座標模式)
-float target_x = 0.0f;
-float target_y = 100.0f; // 預設停在前方半徑
-float target_z = 150.0f; // 預設Z高度
+volatile float pose_x = 0.0f;
+volatile float pose_y = 100.0f; // 預設停在前方半徑
+volatile float pose_z = 0.0f; // 預設Z高度
+
 bool ik_mode_enabled = false;
 
 // 底部旋轉中心到馬達1的偏移距離 (單位: mm，若M1在中心軸上則為 0)
@@ -183,9 +201,14 @@ bool ik_mode_enabled = false;
 const float BASE_R_OFFSET = 0.0f;
 
 // PID 模式目標角度
-float target_theta1_deg = 0.0f;
+float target_theta1_deg = 90.0f;
 float target_theta2_deg = 0.0f; // Motor 2 (was 8-pin, now 13-pin)
-float target_theta3_deg = 0.0f;
+float target_theta3_deg = 90.0f;
+
+// 微動開關校正後對應的固定角度
+static constexpr float HOME_THETA1_DEG = 90.0f;
+static constexpr float HOME_THETA2_DEG = 0.0f;
+static constexpr float HOME_THETA3_DEG = 90.0f;
 
 // PVT 緩衝區 (未來使用，目前先留著結構)
 struct TrajectoryPoint {
@@ -201,6 +224,17 @@ extern "C" void Robot_Init(void) {
     // 呼叫 C 語言底層驅動初始化
     Motor_System_Config();
 
+    // 開機先進入歸零流程，歸零完成後才回到一般控制
+    robot_homing_active = true;
+    robot_homing_done = false;
+    homing_joint1_done = false;
+    homing_joint2_done = false;
+    homing_joint3_done = false;
+
+    // 預設先回到正常控制模式，歸零完成後再由控制任務啟動運動學
+    test_mode_selection = 0;
+    ik_mode_enabled = false;
+
     // 重置 PID 狀態
     joint1_pid.reset();
     joint2_pid.reset();
@@ -214,17 +248,83 @@ extern "C" void Robot_Init(void) {
     // 預設目標設為當前位置 (防止開機暴衝)
     // 注意：這裡假設開機時已經在某個合理位置，且已手動歸零
     // 如果沒有歸零，Encoder 值會是 0，IK 可能解不出來
-    target_x = 0.0f;
-    target_y = 150.0f;
+    pose_x = 0.0f;
+    pose_y = 150.0f;
+    pose_z = 150.0f;
+
+    // 初始角度設定 (使用者需求)
+    target_theta1_deg = 90.0f;
+    target_theta2_deg = 0.0f;
+    target_theta3_deg = 90.0f;
+    target_angle1_deg = target_theta1_deg;
+    target_angle2_deg = target_theta2_deg;
+    target_angle3_deg = target_theta3_deg;
+}
+
+extern "C" void Robot_HandleHomeSwitch(uint16_t gpio_pin) {
+    if (HAL_GPIO_ReadPin(GPIOA, gpio_pin) != GPIO_PIN_RESET) {
+        return;
+    }
+
+    if (gpio_pin == GPIO_PIN_10) {
+        if (homing_joint1_done) {
+            return;
+        }
+        Motor_Stop(&motor_joint_13pin);
+        Motor_CalibrateAngle(&motor_joint_13pin, HOME_THETA1_DEG);
+        real_theta1 = HOME_THETA1_DEG;
+        target_theta1_deg = HOME_THETA1_DEG;
+        target_angle1_deg = HOME_THETA1_DEG;
+        pid_output_rpm1 = 0.0f;
+        homing_joint1_done = true;
+    } else if (gpio_pin == GPIO_PIN_11) {
+        if (homing_joint2_done) {
+            return;
+        }
+        Motor_Stop(&motor_joint_13pin_2);
+        Motor_CalibrateAngle(&motor_joint_13pin_2, HOME_THETA2_DEG);
+        real_theta2 = HOME_THETA2_DEG;
+        target_theta2_deg = HOME_THETA2_DEG;
+        target_angle2_deg = HOME_THETA2_DEG;
+        pid_output_rpm2 = 0.0f;
+        homing_joint2_done = true;
+    } else if (gpio_pin == GPIO_PIN_12) {
+        if (homing_joint3_done) {
+            return;
+        }
+        Motor_Stop(&motor_joint_13pin_3);
+        Motor_CalibrateAngle(&motor_joint_13pin_3, HOME_THETA3_DEG);
+        real_theta3 = HOME_THETA3_DEG;
+        target_theta3_deg = HOME_THETA3_DEG;
+        target_angle3_deg = HOME_THETA3_DEG;
+        pid_output_rpm3 = 0.0f;
+        homing_joint3_done = true;
+    }
+
+    if (homing_joint1_done && homing_joint2_done && homing_joint3_done) {
+        robot_homing_active = false;
+        robot_homing_done = true;
+        Motor_Stop(&motor_joint_13pin);
+        Motor_Stop(&motor_joint_13pin_2);
+        Motor_Stop(&motor_joint_13pin_3);
+    }
+}
+
+extern "C" bool Robot_IsHomingActive(void) {
+    return robot_homing_active;
+}
+
+extern "C" bool Robot_IsHomingDone(void) {
+    return robot_homing_done;
 }
 
 // ==========================================================
 // 2. 設定目標 API (給 main.c 測試用)
 // ==========================================================
 extern "C" void Robot_SetTargetPosition(float x, float y, float z) {
-    target_x = x;
-    target_y = y;
-    target_z = z;
+    pose_x = x;
+    pose_y = y;
+    pose_z = z;
     ik_mode_enabled = true;
 }
 
@@ -276,17 +376,21 @@ extern "C" void Robot_Loop(float dt_seconds) {
     real_theta3 = Motor_GetAngle(&motor_joint_13pin_3);
 
     // --- 步驟 B: 計算目標角度 (Setpoint) ---
-    float target_angle1_deg = target_theta1_deg; 
-    float target_angle2_deg = target_theta2_deg;
-    float target_angle3_deg = target_theta3_deg;
+    target_angle1_deg = target_theta1_deg;
+    target_angle2_deg = target_theta2_deg;
+    target_angle3_deg = target_theta3_deg;
+
+    bool ik_direct_mode = false;
 
     // 完整的 3-DOF 逆運動學 (XYZ 轉換到 M1, M2, M3 角度)
     if (ik_mode_enabled) {
-        MotorAngles3D solution = kinematics.solveIK3D({target_x, target_y, target_z}, BASE_R_OFFSET);
+        MotorAngles3D solution = kinematics.solveIK3D({pose_x, pose_y, pose_z}, BASE_R_OFFSET, real_theta1, real_theta2);
         if (solution.is_reachable) {
             target_angle1_deg = FiveBarKinematics::rad2deg(solution.theta1);
+            // Motor2 直接使用 IK theta2
             target_angle2_deg = FiveBarKinematics::rad2deg(solution.theta2);
             target_angle3_deg = FiveBarKinematics::rad2deg(solution.theta3);
+            ik_direct_mode = true;
         }
     }
 
@@ -297,44 +401,54 @@ extern "C" void Robot_Loop(float dt_seconds) {
         FiveBarKinematics::deg2rad(real_theta3),
         BASE_R_OFFSET
     );
-    // 邊界檢查: Z 低於 10 判定為觸底 (依據你的座標系，如果 Y 是高度需自行調整，這邊以 Z 為高度，水平面是 XY)
-    if (current_pos.z < 10.0f && ik_mode_enabled) {
+    real_x = current_pos.x;
+    real_y = current_pos.y;
+    real_z = current_pos.z;
+    // 邊界檢查 (暫時關閉): IK 直出實機測試時先不做 Z 觸底保護
+    if (false && current_pos.z < 10.0f && ik_mode_enabled) {
         Motor_Stop(&motor_joint_13pin);
         Motor_Stop(&motor_joint_13pin_2);
         Motor_Stop(&motor_joint_13pin_3);
         return; 
     }
 
-    // --- 步驟 D: 軌跡規劃 (Trajectory Planning) ---
-    traj_joint1.update(target_angle1_deg, dt_seconds);
-    traj_joint2.update(target_angle2_deg, dt_seconds);
-    traj_joint3.update(target_angle3_deg, dt_seconds);
-    
-    // 抓取軌跡狀態 (Pos, Vel, Acc)
-    float traj_pos1 = traj_joint1.getPosition();
-    float traj_vel1 = traj_joint1.getVelocity();
-    float traj_acc1 = traj_joint1.getAcceleration();
-
-    float traj_pos2 = traj_joint2.getPosition();
-    float traj_vel2 = traj_joint2.getVelocity();
-    float traj_acc2 = traj_joint2.getAcceleration();
-
-    float traj_pos3 = traj_joint3.getPosition();
-    float traj_vel3 = traj_joint3.getVelocity();
-    float traj_acc3 = traj_joint3.getAcceleration();
-
-    // --- 步驟 E: PID 計算 ---
+    // --- 步驟 D/E: IK 直出模式時直接把目標角送進 PID，不經過軌跡規劃 ---
     Motor_Start(&motor_joint_13pin);
     Motor_Start(&motor_joint_13pin_2);
     Motor_Start(&motor_joint_13pin_3);
 
-    pid_output_rpm1 = joint1_pid.update(traj_pos1, traj_vel1, traj_acc1, real_theta1, dt_seconds);
-    pid_output_rpm2 = joint2_pid.update(traj_pos2, traj_vel2, traj_acc2, real_theta2, dt_seconds);
-    pid_output_rpm3 = joint3_pid.update(traj_pos3, traj_vel3, traj_acc3, real_theta3, dt_seconds);
+    if (ik_direct_mode) {
+        pid_output_rpm1 = joint1_pid.update(target_angle1_deg, 0.0f, 0.0f, real_theta1, dt_seconds);
+        pid_output_rpm2 = joint2_pid.update(target_angle2_deg, 0.0f, 0.0f, real_theta2, dt_seconds);
+        pid_output_rpm3 = joint3_pid.update(target_angle3_deg, 0.0f, 0.0f, real_theta3, dt_seconds);
+    } else {
+        // --- 步驟 D: 軌跡規劃 (Trajectory Planning) ---
+        traj_joint1.update(target_angle1_deg, dt_seconds);
+        traj_joint2.update(target_angle2_deg, dt_seconds);
+        traj_joint3.update(target_angle3_deg, dt_seconds);
+        
+        // 抓取軌跡狀態 (Pos, Vel, Acc)
+        float traj_pos1 = traj_joint1.getPosition();
+        float traj_vel1 = traj_joint1.getVelocity();
+        float traj_acc1 = traj_joint1.getAcceleration();
+
+        float traj_pos2 = traj_joint2.getPosition();
+        float traj_vel2 = traj_joint2.getVelocity();
+        float traj_acc2 = traj_joint2.getAcceleration();
+
+        float traj_pos3 = traj_joint3.getPosition();
+        float traj_vel3 = traj_joint3.getVelocity();
+        float traj_acc3 = traj_joint3.getAcceleration();
+
+        // --- 步驟 E: PID 計算 ---
+        pid_output_rpm1 = joint1_pid.update(traj_pos1, traj_vel1, traj_acc1, real_theta1, dt_seconds);
+        pid_output_rpm2 = joint2_pid.update(traj_pos2, traj_vel2, traj_acc2, real_theta2, dt_seconds);
+        pid_output_rpm3 = joint3_pid.update(traj_pos3, traj_vel3, traj_acc3, real_theta3, dt_seconds);
+    }
 
     // --- 步驟 F: 輸出到底層 ---
-    // [Fix] 反轉第一軸馬達輸出方向，解決 PID 正回授背向目標旋轉的問題
-    Motor_SetSpeed(&motor_joint_13pin, (int32_t)-pid_output_rpm1);
+    // 第一軸方向校正：與 theta1 目標同向
+    Motor_SetSpeed(&motor_joint_13pin, (int32_t)pid_output_rpm1);
     Motor_SetSpeed(&motor_joint_13pin_2, (int32_t)pid_output_rpm2);
     Motor_SetSpeed(&motor_joint_13pin_3, (int32_t)pid_output_rpm3);
 }
@@ -383,8 +497,8 @@ extern "C" void Robot_PID_Loop(float dt_seconds) {
     pid_output_rpm3 = joint3_pid.update(traj_pos3, traj_vel3, traj_acc3, real_theta3, dt_seconds);
 
     // 步驟 4: 輸出到馬達
-    // [Fix] 反轉第一軸馬達輸出方向，解決 PID 正回授背向目標旋轉的問題
-    Motor_SetSpeed(&motor_joint_13pin, (int32_t)-pid_output_rpm1);
+    // 第一軸方向校正：與 theta1 目標同向
+    Motor_SetSpeed(&motor_joint_13pin, (int32_t)pid_output_rpm1);
     Motor_SetSpeed(&motor_joint_13pin_2, (int32_t)pid_output_rpm2);
     Motor_SetSpeed(&motor_joint_13pin_3, (int32_t)pid_output_rpm3);
 }

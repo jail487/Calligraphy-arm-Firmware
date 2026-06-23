@@ -65,7 +65,7 @@ public:
      * 考慮底部旋轉關節加平面五連桿的結構
      * 此處預設五連桿平面的原點(Motor 1)在底座旋轉軸心上方，或自定義平移(offset)。
      */
-    MotorAngles3D solveIK3D(Point3D target, float r_offset = 0.0f);
+    MotorAngles3D solveIK3D(Point3D target, float r_offset = 0.0f, float hint_theta1_deg = 0.0f, float hint_theta2_deg = 0.0f);
 
     /**
      * @brief 3D 正向運動學 (FK): (theta1, theta2, theta3) -> (x, y, z)

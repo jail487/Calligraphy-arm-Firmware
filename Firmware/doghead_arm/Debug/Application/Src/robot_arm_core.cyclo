@@ -5,21 +5,24 @@
 ../Application/Inc/kinematics.hpp:76:18:static float FiveBarKinematics::deg2rad(float)	1
 ../Application/Inc/kinematics.hpp:77:18:static float FiveBarKinematics::rad2deg(float)	1
 /opt/st/stm32cubeide_1.19.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.linux64_1.0.0.202410170706/tools/arm-none-eabi/include/c++/13.3.1/bits/stl_deque.h:96:3:constexpr std::size_t std::__deque_buf_size(size_t)	2
-../Application/Src/robot_arm_core.cpp:57:5:TrapezoidalPlanner::TrapezoidalPlanner()	1
-../Application/Src/robot_arm_core.cpp:59:10:void TrapezoidalPlanner::reset()	1
-../Application/Src/robot_arm_core.cpp:68:10:void TrapezoidalPlanner::setTarget(float, float, float, float)	1
-../Application/Src/robot_arm_core.cpp:78:10:void TrapezoidalPlanner::update(float, float)	11
-../Application/Src/robot_arm_core.cpp:141:11:float TrapezoidalPlanner::getPosition() const	1
-../Application/Src/robot_arm_core.cpp:142:11:float TrapezoidalPlanner::getVelocity() const	1
-../Application/Src/robot_arm_core.cpp:143:11:float TrapezoidalPlanner::getAcceleration() const	1
-../Application/Src/robot_arm_core.cpp:200:17:void Robot_Init()	1
-../Application/Src/robot_arm_core.cpp:224:17:void Robot_SetTargetPosition(float, float, float)	1
-../Application/Src/robot_arm_core.cpp:234:17:void Robot_SetTestMode(bool)	3
-../Application/Src/robot_arm_core.cpp:244:17:void Robot_SetTestSpeed(int32_t, int32_t, int32_t)	1
-../Application/Src/robot_arm_core.cpp:251:17:void Robot_SetTargetAngles(float, float)	1
-../Application/Src/robot_arm_core.cpp:256:17:void Robot_SetTargetAngles3(float, float, float)	1
-../Application/Src/robot_arm_core.cpp:261:17:void Robot_Loop(float)	6
-../Application/Src/robot_arm_core.cpp:345:17:void Robot_PID_Loop(float)	1
+../Application/Src/robot_arm_core.cpp:74:5:TrapezoidalPlanner::TrapezoidalPlanner()	1
+../Application/Src/robot_arm_core.cpp:76:10:void TrapezoidalPlanner::reset()	1
+../Application/Src/robot_arm_core.cpp:85:10:void TrapezoidalPlanner::setTarget(float, float, float, float)	1
+../Application/Src/robot_arm_core.cpp:95:10:void TrapezoidalPlanner::update(float, float)	11
+../Application/Src/robot_arm_core.cpp:158:11:float TrapezoidalPlanner::getPosition() const	1
+../Application/Src/robot_arm_core.cpp:159:11:float TrapezoidalPlanner::getVelocity() const	1
+../Application/Src/robot_arm_core.cpp:160:11:float TrapezoidalPlanner::getAcceleration() const	1
+../Application/Src/robot_arm_core.cpp:223:17:void Robot_Init()	1
+../Application/Src/robot_arm_core.cpp:264:17:void Robot_HandleHomeSwitch(uint16_t)	12
+../Application/Src/robot_arm_core.cpp:313:17:bool Robot_IsHomingActive()	1
+../Application/Src/robot_arm_core.cpp:317:17:bool Robot_IsHomingDone()	1
+../Application/Src/robot_arm_core.cpp:324:17:void Robot_SetTargetPosition(float, float, float)	1
+../Application/Src/robot_arm_core.cpp:334:17:void Robot_SetTestMode(bool)	3
+../Application/Src/robot_arm_core.cpp:344:17:void Robot_SetTestSpeed(int32_t, int32_t, int32_t)	1
+../Application/Src/robot_arm_core.cpp:351:17:void Robot_SetTargetAngles(float, float)	1
+../Application/Src/robot_arm_core.cpp:356:17:void Robot_SetTargetAngles3(float, float, float)	1
+../Application/Src/robot_arm_core.cpp:361:17:void Robot_Loop(float)	5
+../Application/Src/robot_arm_core.cpp:459:17:void Robot_PID_Loop(float)	1
 /opt/st/stm32cubeide_1.19.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.linux64_1.0.0.202410170706/tools/arm-none-eabi/include/c++/13.3.1/bits/stl_deque.h:855:7:std::deque<_Tp, _Alloc>::deque() [with _Tp = TrajectoryPoint; _Alloc = std::allocator<TrajectoryPoint>]	1
 /opt/st/stm32cubeide_1.19.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.linux64_1.0.0.202410170706/tools/arm-none-eabi/include/c++/13.3.1/bits/stl_queue.h:166:2:std::queue<_Tp, _Sequence>::queue() [with _Seq = std::deque<TrajectoryPoint, std::allocator<TrajectoryPoint> >; _Requires = void; _Tp = TrajectoryPoint; _Sequence = std::deque<TrajectoryPoint, std::allocator<TrajectoryPoint> >]	1
 /opt/st/stm32cubeide_1.19.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.linux64_1.0.0.202410170706/tools/arm-none-eabi/include/c++/13.3.1/bits/stl_deque.h:542:14:std::_Deque_base<TrajectoryPoint, std::allocator<TrajectoryPoint> >::_Deque_impl::~_Deque_impl()	1
@@ -52,8 +55,8 @@
 /opt/st/stm32cubeide_1.19.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.linux64_1.0.0.202410170706/tools/arm-none-eabi/include/c++/13.3.1/bits/new_allocator.h:126:7:_Tp* std::__new_allocator<_Tp>::allocate(size_type, const void*) [with _Tp = TrajectoryPoint*]	1
 /opt/st/stm32cubeide_1.19.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.linux64_1.0.0.202410170706/tools/arm-none-eabi/include/c++/13.3.1/bits/new_allocator.h:156:7:void std::__new_allocator<_Tp>::deallocate(_Tp*, size_type) [with _Tp = TrajectoryPoint]	1
 /opt/st/stm32cubeide_1.19.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.linux64_1.0.0.202410170706/tools/arm-none-eabi/include/c++/13.3.1/bits/new_allocator.h:126:7:_Tp* std::__new_allocator<_Tp>::allocate(size_type, const void*) [with _Tp = TrajectoryPoint]	1
-../Application/Src/robot_arm_core.cpp:390:1:void __static_initialization_and_destruction_0()	1
+../Application/Src/robot_arm_core.cpp:504:1:void __static_initialization_and_destruction_0()	1
 /opt/st/stm32cubeide_1.19.0/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.linux64_1.0.0.202410170706/tools/arm-none-eabi/include/c++/13.3.1/bits/stl_queue.h:96:11:std::queue<TrajectoryPoint>::~queue()	1
-../Application/Src/robot_arm_core.cpp:390:1:void __static_initialization_and_destruction_1()	1
-../Application/Src/robot_arm_core.cpp:390:1:cpp)	1
-../Application/Src/robot_arm_core.cpp:390:1:cpp)	1
+../Application/Src/robot_arm_core.cpp:504:1:void __static_initialization_and_destruction_1()	1
+../Application/Src/robot_arm_core.cpp:504:1:cpp)	1
+../Application/Src/robot_arm_core.cpp:504:1:cpp)	1

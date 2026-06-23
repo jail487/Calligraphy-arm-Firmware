@@ -94,6 +94,9 @@ typedef struct Motor_s {
     float speed_pid_integral;           // 積分累加值
     float speed_pid_prev_error;         // 上次誤差值
     float current_duty_cycle;           // 目前輸出的 PWM Duty (0.0 ~ 1.0)
+
+    // --- 角度零點偏移 [新增] ---
+    float angle_offset_deg;             // 回授角度偏移，Motor_GetAngle 會加上此值
 } Motor_t;
 
 
@@ -143,6 +146,18 @@ float Motor_GetVelocity(Motor_t *motor);
  * @note 將當前位置設為 0 度
  */
 void Motor_ResetEncoder(Motor_t *motor);
+
+/**
+ * @brief 將目前位置校正為指定角度
+ * @param target_deg 希望在當下位置對應到的角度
+ */
+void Motor_CalibrateAngle(Motor_t *motor, float target_deg);
+
+/**
+ * @brief 設定角度零點偏移
+ * @note 呼叫後 Motor_GetAngle() 會回傳「實際角度 + offset」。
+ */
+void Motor_SetAngleOffset(Motor_t *motor, float offset_deg);
 
 /**
  * @brief 啟動馬達 (Enable/Run)

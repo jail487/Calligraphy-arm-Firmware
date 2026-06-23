@@ -192,6 +192,7 @@ void Motor_Init(Motor_t *motor) {
     motor->speed_pid_integral = 0.0f;
     motor->speed_pid_prev_error = 0.0f;
     motor->current_duty_cycle = 0.0f;
+    motor->angle_offset_deg = 0.0f;
 
     // [New] 設定預設 PID 參數 (可調)
     if (motor->type == MOTOR_TYPE_PWM_8PIN) {
@@ -338,7 +339,14 @@ float Motor_GetAngle(Motor_t *motor) {
     float output_revs = (float)motor->total_pulse_count / (pulses_per_motor_rev * motor->config.gear_ratio);
 
     // 轉換為角度
-    return output_revs * 360.0f;
+    float angle_deg = output_revs * 360.0f;
+
+    // theta2/theta3 軸方向校正：第二、第三顆馬達角度回授取反號
+    if (motor == &motor_joint_13pin_2 || motor == &motor_joint_13pin_3) {
+        angle_deg = -angle_deg;
+    }
+
+    return angle_deg + motor->angle_offset_deg;
 }
 
 void Motor_ResetEncoder(Motor_t *motor) {
@@ -352,7 +360,29 @@ void Motor_ResetEncoder(Motor_t *motor) {
     }
 }
 
+
+void Motor_CalibrateAngle(Motor_t *motor, float target_deg) {
+    if (motor->config.gear_ratio == 0.0f || motor->config.encoder_ppr == 0.0f) {
+        motor->angle_offset_deg = target_deg;
+        return;
+    }
+
+    float pulses_per_motor_rev = motor->config.encoder_ppr * 4.0f;
+    float raw_output_revs = (float)motor->total_pulse_count / (pulses_per_motor_rev * motor->config.gear_ratio);
+    float raw_angle_deg = raw_output_revs * 360.0f;
+
+    // 重新定義當前角度 = target_deg
+    motor->angle_offset_deg = target_deg - raw_angle_deg;
+}
+void Motor_SetAngleOffset(Motor_t *motor, float offset_deg) {
+    motor->angle_offset_deg = offset_deg;
+}
+
 float Motor_GetVelocity(Motor_t *motor) {
+    // theta2/theta3 軸方向校正：第二、第三顆馬達速度回授取反號
+    if (motor == &motor_joint_13pin_2 || motor == &motor_joint_13pin_3) {
+        return -motor->measured_velocity_rpm;
+    }
     return motor->measured_velocity_rpm;
 }
 
@@ -399,9 +429,9 @@ void Motor_System_Config(void) {
     motor_joint_13pin.config.dir_pin = GPIO_PIN_1;    // DIR
 
     // 參數
-    motor_joint_13pin.config.max_rpm = 6000;
-    motor_joint_13pin.config.encoder_ppr = 100.0f;  // [已確認] 規格為 100 PPR
-    motor_joint_13pin.config.gear_ratio = 1.0f;    // [已確認] 無減速機，比率 1:1
+    motor_joint_13pin.config.max_rpm = 1710;         // 0.25 rps * 114:1 = 1710 rpm (motor shaft)
+    motor_joint_13pin.config.encoder_ppr = 100.0f;   // [已確認] 規格為 100 PPR
+    motor_joint_13pin.config.gear_ratio = 114.0f;    // 減速比 114:1
 
     Motor_Init(&motor_joint_13pin);
 
@@ -422,9 +452,9 @@ void Motor_System_Config(void) {
     motor_joint_13pin_2.config.dir_pin = GPIO_PIN_2;    // DIR
 
     // 參數
-    motor_joint_13pin_2.config.max_rpm = 6000;
+    motor_joint_13pin_2.config.max_rpm = 1710;       // 0.25 rps * 114:1 = 1710 rpm (motor shaft)
     motor_joint_13pin_2.config.encoder_ppr = 100.0f; // [已確認] 規格為 100 PPR
-    motor_joint_13pin_2.config.gear_ratio = 1.0f;   // [已確認] 無減速機，比率 1:1
+    motor_joint_13pin_2.config.gear_ratio = 114.0f;  // 減速比 114:1
 
     Motor_Init(&motor_joint_13pin_2);
 
@@ -443,9 +473,9 @@ void Motor_System_Config(void) {
     motor_joint_13pin_3.config.dir_port = GPIOC;    
     motor_joint_13pin_3.config.dir_pin = GPIO_PIN_3;                            
     // 參數
-    motor_joint_13pin_3.config.max_rpm = 6000;
+    motor_joint_13pin_3.config.max_rpm = 1710;       // 0.25 rps * 114:1 = 1710 rpm (motor shaft)
     motor_joint_13pin_3.config.encoder_ppr = 100.0f;
-    motor_joint_13pin_3.config.gear_ratio = 1.0f;
+    motor_joint_13pin_3.config.gear_ratio = 114.0f;  // 減速比 114:1
 
     Motor_Init(&motor_joint_13pin_3);
 

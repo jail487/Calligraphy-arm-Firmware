@@ -27,9 +27,17 @@ extern volatile float pid_target_theta1;
 extern volatile float pid_target_theta2;
 extern volatile float pid_target_theta3;
 
+extern volatile float pose_x;
+extern volatile float pose_y;
+extern volatile float pose_z;
+
 extern volatile float real_theta1;
 extern volatile float real_theta2;
 extern volatile float real_theta3;
+
+extern volatile float real_x;
+extern volatile float real_y;
+extern volatile float real_z;
 
 extern volatile float real_rpm1;
 extern volatile float real_rpm2;
@@ -39,10 +47,31 @@ extern volatile float pid_output_rpm1;
 extern volatile float pid_output_rpm2;
 extern volatile float pid_output_rpm3;
 
+extern volatile bool robot_homing_active;
+extern volatile bool robot_homing_done;
+extern volatile bool homing_joint1_done;
+extern volatile bool homing_joint2_done;
+extern volatile bool homing_joint3_done;
+extern volatile bool homing_trigger_pin10;
+extern volatile bool homing_trigger_pin11;
+extern volatile bool homing_trigger_pin12;
+
+// IK/PID 迴圈中實際使用的目標角度 (Degree)
+extern volatile float target_angle1_deg;
+extern volatile float target_angle2_deg;
+extern volatile float target_angle3_deg;
+
 // ----------------------------------------------------------
 
 // 初始化機器人 (馬達、PID)
 void Robot_Init(void);
+
+// 外部微動開關校正：下降沿時呼叫，停止對應馬達並把當前角度校正為指定值
+void Robot_HandleHomeSwitch(uint16_t gpio_pin);
+
+// 供 FreeRTOS 控制任務判斷是否仍在歸零流程中
+bool Robot_IsHomingActive(void);
+bool Robot_IsHomingDone(void);
 
 // 設定測試模式 (true=純速度控制, false=位置軌跡控制)
 void Robot_SetTestMode(bool enable);
