@@ -1,3 +1,0 @@
-../Middleware/FreeRTOS/Src/freertos.c:72:6:ControlTask	14
-../Middleware/FreeRTOS/Src/freertos.c:249:6:CommTask	8
-../Middleware/FreeRTOS/Src/freertos.c:306:6:MX_FREERTOS_Init	1

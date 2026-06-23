@@ -1,0 +1,23 @@
+# Build outputs
+doghead_arm/Debug/
+doghead_arm/Release/
+*.o
+*.d
+*.su
+*.elf
+*.map
+*.cyclo
+*.list
+
+# IDE workspace metadata
+.metadata/
+doghead_arm/.metadata/
+
+# Editor / IDE configurations
+doghead_arm/.settings/
+doghead_arm/.vscode/
+.vscode/
+
+# Ignore OS files
+Thumbs.db
+Desktop.ini

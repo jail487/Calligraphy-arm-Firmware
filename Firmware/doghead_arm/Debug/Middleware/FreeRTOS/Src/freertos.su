@@ -1,3 +1,0 @@
-../Middleware/FreeRTOS/Src/freertos.c:72:6:ControlTask	80	static
-../Middleware/FreeRTOS/Src/freertos.c:297:6:CommTask	72	static
-../Middleware/FreeRTOS/Src/freertos.c:354:6:MX_FREERTOS_Init	16	static

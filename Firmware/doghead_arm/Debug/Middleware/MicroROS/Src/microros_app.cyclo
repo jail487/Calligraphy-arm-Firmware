@@ -1,8 +1,0 @@
-../Middleware/MicroROS/Src/microros_app.c:58:13:motor_cmd_callback	2
-../Middleware/MicroROS/Src/microros_app.c:82:13:init_joint_state_msg	1
-../Middleware/MicroROS/Src/microros_app.c:114:13:init_motor_cmd_msg	1
-../Middleware/MicroROS/Src/microros_app.c:128:6:MicroROS_Init	7
-../Middleware/MicroROS/Src/microros_app.c:200:6:MicroROS_PublishJointStates	4
-../Middleware/MicroROS/Src/microros_app.c:244:6:MicroROS_Spin	2
-../Middleware/MicroROS/Src/microros_app.c:257:6:MicroROS_Fini	2
-../Middleware/MicroROS/Src/microros_app.c:287:6:MicroROS_IsInitialized	1

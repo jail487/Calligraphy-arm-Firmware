@@ -1,4 +1,0 @@
-../Application/Src/kinematics.cpp:18:13:MotorAngles FiveBarKinematics::solveIK(Point2D, int)	3
-../Application/Src/kinematics.cpp:68:9:Point2D FiveBarKinematics::solveFK(float, float)	1
-../Application/Src/kinematics.cpp:78:15:MotorAngles3D FiveBarKinematics::solveIK3D(Point3D, float, float, float)	3
-../Application/Src/kinematics.cpp:110:9:Point3D FiveBarKinematics::solveFK3D(float, float, float, float)	3
