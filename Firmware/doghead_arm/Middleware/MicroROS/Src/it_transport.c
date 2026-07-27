@@ -1,3 +1,4 @@
+#if 0
 #include <uxr/client/transport.h>
 
 #include <rmw_microxrcedds_c/config.h>
@@ -71,3 +72,5 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 }
 
 #endif //RMW_UXRCE_TRANSPORT_CUSTOM
+#endif
+

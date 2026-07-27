@@ -61,6 +61,8 @@ typedef struct {
     // --- 機械參數 [新增] ---
     float gear_ratio;           // 減速比 (例如 50.0 代表 50:1 減速機)
     float encoder_ppr;          // 編碼器解析度 (Pulse Per Rev)，Nidec這兩顆通常是 100
+    bool inverted;              // 是否方向反向 (true 代表給正速朝反方向轉)
+    bool encoder_inverted;      // 是否編碼器回授反向 (true 代表回授角度與速度取反)
 
     // --- 速度 PID 參數 (僅 8-Pin PWM 模式使用) [新增] ---
     float speed_kp;             // 比例增益
@@ -104,11 +106,6 @@ typedef struct Motor_s {
 // 2. 對外公開 API (Public Functions)
 // ==========================================================
 
-/**
- * @brief 系統層級的馬達配置初始化
- * @note 請在 main() 的 USER CODE BEGIN 2 區域呼叫此函式
- */
-void Motor_System_Config(void);
 
 /**
  * @brief 初始化單一馬達物件

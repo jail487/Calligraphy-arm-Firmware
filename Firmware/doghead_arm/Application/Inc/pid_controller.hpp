@@ -56,13 +56,10 @@ public:
         float p_out = _kp * error;
         
         // I 項 (🚨 優化 1: 積分抗飽和 Integral Anti-Windup)
-        _integral += error * dt;
-        if (_integral > _max_integral) {
-            _integral = _max_integral;
-        } else if (_integral < -_max_integral) {
-            _integral = -_max_integral;
-        }
-        float i_out = _ki * _integral;
+        float candidate_integral = _integral + error * dt;
+        if (candidate_integral > _max_integral) candidate_integral = _max_integral;
+        if (candidate_integral < -_max_integral) candidate_integral = -_max_integral;
+        float i_out = _ki * candidate_integral;
         
         // D 項 (🚨 優化 2: 對實測值微分 Derivative on Measurement)
         // 注意：這裡是 -(現在位置 - 過去位置) / dt，藉此消除目標跳變產生的突刺
@@ -95,6 +92,13 @@ public:
         // ==========================================================
         // 4. 最終輸出限幅 (Output Clamping)
         // ==========================================================
+        // Do not integrate farther into saturation; this prevents a large
+        // residual command when the target or safety state changes.
+        bool saturated_high = output > _max_output;
+        bool saturated_low = output < -_max_output;
+        if ((!saturated_high || error < 0.0f) && (!saturated_low || error > 0.0f)) {
+            _integral = candidate_integral;
+        }
         if (output > _max_output) {
             output = _max_output;
         } else if (output < -_max_output) {

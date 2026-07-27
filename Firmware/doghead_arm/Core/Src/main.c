@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "mainpp.h"
+#include "robot_config.h"
 //#include <rcl/rcl.h>
 //#include <rcl/error_handling.h>
 //#include <rclc/rclc.h>
@@ -775,12 +776,12 @@ static void MX_GPIO_Init(void)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   // ISR-safe: 只設定旗標，真正的停止/校正由 ControlTask 在 thread context 執行
-  if (GPIO_Pin == GPIO_PIN_10) {
-    if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10) == GPIO_PIN_RESET) homing_trigger_pin10 = true;
-  } else if (GPIO_Pin == GPIO_PIN_11) {
-    if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_11) == GPIO_PIN_RESET) homing_trigger_pin11 = true;
-  } else if (GPIO_Pin == GPIO_PIN_12) {
-    if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_12) == GPIO_PIN_RESET) homing_trigger_pin12 = true;
+  if (GPIO_Pin == JOINT1_HOME_PIN) {
+    if (HAL_GPIO_ReadPin(GPIOA, JOINT1_HOME_PIN) == GPIO_PIN_RESET) homing_trigger_pin10 = true;
+  } else if (GPIO_Pin == JOINT3_HOME_PIN) {
+    if (HAL_GPIO_ReadPin(GPIOA, JOINT3_HOME_PIN) == GPIO_PIN_RESET) homing_trigger_pin11 = true;
+  } else if (GPIO_Pin == JOINT2_HOME_PIN) {
+    if (HAL_GPIO_ReadPin(GPIOA, JOINT2_HOME_PIN) == GPIO_PIN_RESET) homing_trigger_pin12 = true;
   }
 }
 
@@ -851,7 +852,8 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-#ifdef USE_FULL_ASSERT
+
+#ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.

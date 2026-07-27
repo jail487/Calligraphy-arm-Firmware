@@ -3,6 +3,9 @@
 #include <sys/time.h>
 #include "cmsis_os.h"
 
+// 前向宣告 clock_gettime 以避免隱式宣告警告
+int clock_gettime(int clock_id, struct timespec * tp);
+
 // 定義 rcutils 類型以避免依賴標頭檔
 typedef int64_t rcutils_time_point_value_t;
 typedef int rcutils_ret_t;

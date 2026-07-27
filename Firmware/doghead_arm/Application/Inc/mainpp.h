@@ -8,6 +8,7 @@
 #include "robot_config.h"
 #include "homing_calibration.h"
 #include "test_scenarios.h"
+#include "safety_manager.h"
 
 #ifdef __cplusplus
 #include "trajectory_planner.h"

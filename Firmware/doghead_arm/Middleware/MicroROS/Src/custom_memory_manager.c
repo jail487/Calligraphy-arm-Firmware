@@ -1,3 +1,4 @@
+#if 0
 /*
  * A custom implementation of pvPortMallocMicroROS() and vPortFreeMicroROS() with realloc and
  * calloc features based on FreeRTOS heap4.c.
@@ -453,3 +454,5 @@ uint8_t *puc;
 		mtCOVERAGE_TEST_MARKER();
 	}
 }
+#endif
+
