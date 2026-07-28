@@ -31,6 +31,9 @@ extern volatile int32_t home_search_rpm_m1;
 extern volatile int32_t home_search_rpm_m2;
 extern volatile int32_t home_search_rpm_m3;
 
+extern const uint32_t homing_timeout_ms;
+extern const float homing_max_travel_deg;
+
 // ==========================================================
 // API 宣告
 // ==========================================================
@@ -38,6 +41,7 @@ void Robot_HandleHomeSwitch(uint16_t gpio_pin);
 bool Robot_IsHomingActive(void);
 bool Robot_IsHomingDone(void);
 void Robot_HomingStart(void);
+void Robot_Homing_Tick(void);
 
 #ifdef __cplusplus
 }

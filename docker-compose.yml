@@ -1,0 +1,37 @@
+# micro-ROS Agent Docker Compose 配置
+# 用於同時運行多個 ROS2 相關服務
+
+version: '3.8'
+
+services:
+  # micro-ROS Agent (連接 STM32)
+  microros-agent:
+    image: microros/micro-ros-agent:humble
+    container_name: doghead_microros_agent
+    network_mode: host
+    devices:
+      - /dev/ttyACM0:/dev/ttySTM32:rw  # 根據實際串列埠修改
+    command: serial --dev /dev/ttySTM32 -b 115200 -v6
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+
+  # ROS2 開發容器 (選用 - 用於隔離開發環境)
+  ros2-dev:
+    image: osrf/ros:humble-desktop-full
+    container_name: doghead_ros2_dev
+    network_mode: host
+    volumes:
+      - ../:/workspace:rw  # 掛載專案目錄
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw  # X11 轉發（GUI 支援）
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    command: /bin/bash -c "source /opt/ros/humble/setup.bash && tail -f /dev/null"
+    tty: true
+    stdin_open: true
+
+# 網路配置（使用主機網路讓 ROS2 DDS 正常工作）
+networks:
+  default:
+    driver: bridge

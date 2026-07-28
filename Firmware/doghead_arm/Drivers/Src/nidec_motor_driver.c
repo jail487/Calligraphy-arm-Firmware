@@ -9,13 +9,6 @@
 #include <stdlib.h>
 
 // ==========================================================
-// 全域馬達物件實體化
-// ==========================================================
-Motor_t motor_joint_13pin;
-Motor_t motor_joint_13pin_2;
-Motor_t motor_joint_13pin_3;
-
-// ==========================================================
 // 私有輔助函式 (Helper)
 // ==========================================================
 
@@ -74,9 +67,11 @@ static void Impl_Freq13Pin_SetSpeed(Motor_t *self, int32_t target_rpm) {
 }
 
 static void Impl_Freq13Pin_SetEnable(Motor_t *self, bool enable) {
-  // START Pin: High = Enable
-  HAL_GPIO_WritePin(self->config.enable_port, self->config.enable_pin,
-                    enable ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  // START Pin: High = Enable (若啟用腳位存在才寫入)
+  if (self->config.enable_port != NULL) {
+    HAL_GPIO_WritePin(self->config.enable_port, self->config.enable_pin,
+                      enable ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  }
 
   if (enable) {
     HAL_TIM_PWM_Start(self->config.htim_pwm, self->config.tim_channel);
@@ -104,9 +99,11 @@ static void Impl_PWM8Pin_SetSpeed(Motor_t *self, int32_t target_rpm) {
 }
 
 static void Impl_PWM8Pin_SetEnable(Motor_t *self, bool enable) {
-  // BRAKE Pin: Low = Brake (Stop), High = Run
-  HAL_GPIO_WritePin(self->config.enable_port, self->config.enable_pin,
-                    enable ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  // BRAKE Pin: Low = Brake (Stop), High = Run (若啟用腳位存在才寫入)
+  if (self->config.enable_port != NULL) {
+    HAL_GPIO_WritePin(self->config.enable_port, self->config.enable_pin,
+                      enable ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  }
 
   if (enable) {
     HAL_TIM_PWM_Start(self->config.htim_pwm, self->config.tim_channel);
@@ -171,10 +168,12 @@ void Motor_Init(Motor_t *motor) {
   motor->angle_offset_deg = 0.0f;
 
   if (motor->type == MOTOR_TYPE_PWM_8PIN) {
-    motor->config.speed_kp = 0.0001f;
-    motor->config.speed_ki = 0.00005f;
-    motor->config.speed_kd = 0.0f;
-    motor->config.speed_integral_limit = 0.3f;
+    if (motor->config.speed_kp == 0.0f && motor->config.speed_ki == 0.0f) {
+      motor->config.speed_kp = 0.0001f;
+      motor->config.speed_ki = 0.00005f;
+      motor->config.speed_kd = 0.0f;
+      motor->config.speed_integral_limit = 0.3f;
+    }
   }
 
   if (motor->config.htim_encoder != NULL) {

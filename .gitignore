@@ -1,0 +1,16 @@
+.vscode/browse.vc.db
+Firmware/.vscode/browse.vc.db
+.metadata/
+Firmware/doghead_arm/.metadata/
+Firmware/doghead_arm/Debug/
+Firmware/doghead_arm/Release/
+*.elf
+*.bin
+*.hex
+*.o
+*.d
+*.su
+*.cyclomatic
+*.map
+*.list
+

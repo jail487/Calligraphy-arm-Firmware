@@ -24,6 +24,8 @@ extern volatile bool enable_square_test;
 // ==========================================================
 void Robot_SetTestMode(bool enable);
 void Robot_SetTestSpeed(int32_t rpm_motor1, int32_t rpm_motor2, int32_t rpm_motor3);
+void Robot_SquareTest_Tick(void);
+void Robot_TestMode_Tick(void);
 
 #ifdef __cplusplus
 }

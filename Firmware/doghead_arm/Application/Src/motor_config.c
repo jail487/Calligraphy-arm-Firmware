@@ -4,7 +4,13 @@
  */
 
 #include "motor_config.h"
-#include "nidec_motor_driver.h"
+
+// ==========================================================
+// 全域馬達物件實體化 (Application Layer)
+// ==========================================================
+Motor_t motor_joint_13pin;
+Motor_t motor_joint_13pin_2;
+Motor_t motor_joint_13pin_3;
 
 void Motor_System_Config(void) {
 
@@ -16,8 +22,8 @@ void Motor_System_Config(void) {
     motor_joint_13pin.config.tim_channel = TIM_CHANNEL_1; // PA5 (M1 PWM)
     // Encoder Timer (M1 Encoder)
     motor_joint_13pin.config.htim_encoder = &htim1; // PA8, PA9 (M1 Encoder)
-    motor_joint_13pin.config.enable_port = M1_ENABLE_PORT;
-    motor_joint_13pin.config.enable_pin = M1_ENABLE_PIN; // START
+    motor_joint_13pin.config.enable_port = NULL; // Enable Pin 取消
+    motor_joint_13pin.config.enable_pin = 0;
     motor_joint_13pin.config.dir_port = M1_DIR_PORT;
     motor_joint_13pin.config.dir_pin = M1_DIR_PIN; // DIR
 
@@ -41,8 +47,8 @@ void Motor_System_Config(void) {
     motor_joint_13pin_2.config.htim_encoder = &htim4; // PA8, PA9
 
     // GPIO
-    motor_joint_13pin_2.config.enable_port = M2_ENABLE_PORT;
-    motor_joint_13pin_2.config.enable_pin = M2_ENABLE_PIN; // BRAKE
+    motor_joint_13pin_2.config.enable_port = NULL; // Enable Pin 取消
+    motor_joint_13pin_2.config.enable_pin = 0;
     motor_joint_13pin_2.config.dir_port = M2_DIR_PORT;
     motor_joint_13pin_2.config.dir_pin = M2_DIR_PIN; // DIR
 
@@ -65,8 +71,8 @@ void Motor_System_Config(void) {
     motor_joint_13pin_3.config.htim_encoder = &htim5; // PA0, PA1 (M3 Encoder)
 
     // GPIO
-    motor_joint_13pin_3.config.enable_port = M3_ENABLE_PORT;
-    motor_joint_13pin_3.config.enable_pin = M3_ENABLE_PIN;
+    motor_joint_13pin_3.config.enable_port = NULL; // Enable Pin 取消
+    motor_joint_13pin_3.config.enable_pin = 0;
     motor_joint_13pin_3.config.dir_port = M3_DIR_PORT;
     motor_joint_13pin_3.config.dir_pin = M3_DIR_PIN;
 

@@ -167,13 +167,6 @@ void Motor_Start(Motor_t *motor);
 void Motor_Stop(Motor_t *motor);
 
 
-// ==========================================================
-// 3. 全域馬達實體宣告
-// ==========================================================
-extern Motor_t motor_joint_13pin;
-extern Motor_t motor_joint_13pin_2; // Second 13-pin motor
-extern Motor_t motor_joint_13pin_3; // Third 13-pin motor
-
 #ifdef __cplusplus
 }
 #endif

@@ -24,6 +24,7 @@ void Robot_Init(void);
 // 機器人主迴圈 (需由 FreeRTOS 週期呼叫)
 // dt_seconds: 距離上次呼叫的時間差 (秒)，例如 1ms = 0.001f
 void Robot_Loop(float dt_seconds);
+void Robot_ControlTask_Tick(float dt_seconds);
 
 #ifdef __cplusplus
 }
