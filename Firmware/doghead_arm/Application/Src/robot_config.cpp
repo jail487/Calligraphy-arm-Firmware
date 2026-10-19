@@ -9,66 +9,38 @@
 // ==========================================================
 RobotState_t robot_state = {0};
 
-RobotTarget_t robot_target = {
-    .target_angle1_deg = 0.0f,
-    .target_angle2_deg = 0.0f,
-    .target_angle3_deg = 0.0f,
-    .pose_x = 0.0f,
-    .pose_y = 100.0f,
-    .pose_z = 0.0f,
-    .target_theta1_deg = 90.0f,
-    .target_theta2_deg = 0.0f,
-    .target_theta3_deg = 90.0f
-};
-
-const float BASE_R_OFFSET = 0.0f;
-bool ik_mode_enabled = false;
-
 // ==========================================================
 // C++ 類別實體定義
 // ==========================================================
-FiveBarKinematics kinematics(LINK_L1, LINK_L2, MOTOR_DIST_D);
-
 // 參數: (Kp, Ki, Kd, Kv_速度前饋, Ka_加速度前饋, max_rpm)
-PositionController joint1_pid(5.0f, 0.1f, 0.0f, 1.0f, 0.1f, 1710.0f);
-PositionController joint2_pid(5.0f, 0.1f, 0.0f, 1.0f, 0.1f, 1710.0f);
-PositionController joint3_pid(8.0f, 0.2f, 0.0f, 1.0f, 0.15f, 1710.0f);
+// 註解說明：
+// 馬達未經減速機的 Spec 硬體最大轉速為 5000 RPM。
+// 現階段帶載 Bringup 測試統一綁定 BRINGUP_MAX_MOTOR_RPM (150 RPM) 以防止 PID 輸出超過安全檢查導致 INVALID_COMMAND 鎖死。
+// 未來測試穩定後，只需修改 robot_config.h 的 BRINGUP_MAX_MOTOR_RPM 宏至 5000.0f 即可解鎖規格全速。
+// 依據三軸空間立體 Benchmark 最佳冠軍參數 (總分 88.3 分，跟隨誤差 < 0.8°，穩態誤差 0.01°，Ka=0 消除超調衝擊)
+PositionController joint1_pid(8.3f, 0.32f, 0.026f, 1.20f, 0.00f, BRINGUP_MAX_MOTOR_RPM);
+PositionController joint2_pid(5.8f, 0.22f, 0.026f, 1.20f, 0.00f, BRINGUP_MAX_MOTOR_RPM);
+PositionController joint3_pid(7.5f, 0.25f, 0.025f, 1.00f, 0.00f, BRINGUP_MAX_MOTOR_RPM);
 
 // ==========================================================
 // API 實作
 // ==========================================================
-extern "C" void Robot_SetTargetAngles(float theta1_deg, float theta2_deg) {
-    if (!Robot_AreJointTargetsValid(theta1_deg, theta2_deg, robot_target.target_theta3_deg)) {
-        RobotSafety_TriggerFault(ROBOT_FAULT_INVALID_COMMAND);
-        return;
-    }
-    robot_target.target_theta1_deg = theta1_deg;
-    robot_target.target_theta2_deg = theta2_deg;
-    RobotSafety_RequestRun();
-}
-
-extern "C" void Robot_SetTargetAngles3(float theta1, float theta2, float theta3) {
-    if (!Robot_AreJointTargetsValid(theta1, theta2, theta3)) {
-        RobotSafety_TriggerFault(ROBOT_FAULT_INVALID_COMMAND);
-        return;
-    }
-    robot_target.target_theta1_deg = theta1;
-    robot_target.target_theta2_deg = theta2;
-    robot_target.target_theta3_deg = theta3;
-    RobotSafety_RequestRun();
-}
-
-extern "C" void Robot_SetTargetPosition(float x, float y, float z) {
-    robot_target.pose_x = x;
-    robot_target.pose_y = y;
-    robot_target.pose_z = z;
-    ik_mode_enabled = true;
-    RobotSafety_RequestRun();
-}
-
 extern "C" bool Robot_AreJointTargetsValid(float theta1_deg, float theta2_deg, float theta3_deg) {
     return std::isfinite(theta1_deg) && std::isfinite(theta2_deg) && std::isfinite(theta3_deg) &&
            theta1_deg >= JOINT1_MIN_DEG && theta1_deg <= JOINT1_MAX_DEG &&
            theta2_deg >= JOINT2_MIN_DEG && theta2_deg <= JOINT2_MAX_DEG &&
            theta3_deg >= JOINT3_MIN_DEG && theta3_deg <= JOINT3_MAX_DEG;
 }
+
+extern "C" void Robot_SetPidGains(uint8_t axis, float kp, float ki, float kd, float kv, float ka) {
+    if (axis == 0 || axis == 10 || axis == 11) {
+        joint1_pid.setGains(kp, ki, kd, kv, ka);
+    }
+    if (axis == 1 || axis == 10 || axis == 12) {
+        joint2_pid.setGains(kp, ki, kd, kv, ka);
+    }
+    if (axis == 2 || axis == 10 || axis == 13) {
+        joint3_pid.setGains(kp, ki, kd, kv, ka);
+    }
+}
+

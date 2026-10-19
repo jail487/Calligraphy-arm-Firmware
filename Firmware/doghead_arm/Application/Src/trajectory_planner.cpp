@@ -1,101 +1,160 @@
 #include "trajectory_planner.h"
+#include "robot_config.h"
 #include <cmath>
 
-TrapezoidalPlanner::TrapezoidalPlanner() {
+JointPvaInterpolator g_pva_interpolator;
+
+JointPvaInterpolator::JointPvaInterpolator() {
     reset();
 }
 
-void TrapezoidalPlanner::reset() {
-    _current_pos = 0.0f;
-    _current_vel = 0.0f;
-    _target_pos = 0.0f;
-    _max_vel = 90.0f;  // deg/s = 0.25 rps (過減速機後的關節輸出軸)
-    _max_acc = 180.0f; // deg/s^2 <-- 降低加速度 (溫和模式)，原 360
-    _last_acc = 0.0f;
+void JointPvaInterpolator::reset() {
+    for (int i = 0; i < 3; ++i) {
+        _state.pos_rad[i] = 0.0f;
+        _state.vel_rad_s[i] = 0.0f;
+        _state.acc_rad_s2[i] = 0.0f;
+    }
+    _state.active = false;
 }
 
-void TrapezoidalPlanner::setTarget(float start_pos, float target_pos, float max_vel, float max_acc) {
-    _current_pos = start_pos;
-    _target_pos = target_pos;
-    _max_vel = std::fmax(std::fabs(max_vel), 0.001f);
-    _max_acc = std::fmax(std::fabs(max_acc), 0.001f);
+void JointPvaInterpolator::init(float p0_rad, float p1_rad, float p2_rad) {
+    _state.pos_rad[0] = p0_rad;
+    _state.pos_rad[1] = p1_rad;
+    _state.pos_rad[2] = p2_rad;
+    _state.vel_rad_s[0] = 0.0f;
+    _state.vel_rad_s[1] = 0.0f;
+    _state.vel_rad_s[2] = 0.0f;
+    _state.acc_rad_s2[0] = 0.0f;
+    _state.acc_rad_s2[1] = 0.0f;
+    _state.acc_rad_s2[2] = 0.0f;
+    _state.active = true;
 }
 
-void TrapezoidalPlanner::update(float target_pos_in, float dt) {
-    if (!std::isfinite(target_pos_in) || !std::isfinite(dt) || dt <= 0.0f) {
-        _current_vel = 0.0f;
-        _last_acc = 0.0f;
-        return;
-    }
-    // 如果目標位置改變了 (且差異大於浮點數誤差)，則更新目標
-    if (std::fabs(target_pos_in - _target_pos) > 0.001f) {
-         setTarget(_current_pos, target_pos_in, _max_vel, _max_acc);
+bool JointPvaInterpolator::update(const JointPvaPayload_t& target_pva, float dt_seconds, JointPvaState& out_state) {
+    if (dt_seconds <= 0.0f || !std::isfinite(dt_seconds)) {
+        reset();
+        out_state = _state;
+        return false;
     }
 
-    // 1. 計算剩餘距離
-    float dist_to_target = _target_pos - _current_pos;
-    
-    // 2. 判斷需要減速的煞車距離
-    // s = (v^2) / (2a)
-    float stop_dist = (_current_vel * _current_vel) / (2.0f * _max_acc);
+    if (!_state.active) {
+        init(_state.pos_rad[0], _state.pos_rad[1], _state.pos_rad[2]);
+    }
 
-    // 決定加速度方向
-    float accel_cmd = 0.0f;
-    
-    if (dist_to_target > 0) {
-        // 正向移動
-        if (_current_vel < 0) {
-            // 如果當前正在倒退，必須先煞車
-            accel_cmd = _max_acc;
-        } else if (dist_to_target > stop_dist) {
-            // 還沒到煞車點，全力加速直到達限速
-            if (_current_vel < _max_vel) accel_cmd = _max_acc;
-            else accel_cmd = 0.0f;
-        } else {
-            // 已進入煞車區，全力減速
-            accel_cmd = -_max_acc;
+    static const float min_pos[3] = { JOINT1_MIN_RAD, JOINT2_MIN_RAD, JOINT3_MIN_RAD };
+    static const float max_pos[3] = { JOINT1_MAX_RAD, JOINT2_MAX_RAD, JOINT3_MAX_RAD };
+
+    for (int i = 0; i < 3; ++i) {
+        float targ_p = target_pva.position_rad[i];
+        float targ_v = target_pva.velocity_rad_s[i];
+        float targ_a = target_pva.acceleration_rad_s2[i];
+
+        if (!std::isfinite(targ_p) || !std::isfinite(targ_v) || !std::isfinite(targ_a)) {
+            reset();
+            out_state = _state;
+            return false;
         }
-    } else {
-        // 負向移動
-        if (_current_vel > 0) {
-            // 如果當前正在前進，必須先煞車
-            accel_cmd = -_max_acc;
-        } else if (-dist_to_target > stop_dist) {
-            // 還沒到煞車點 (注意符號)，加速負向
-            if (_current_vel > -_max_vel) accel_cmd = -_max_acc;
-            else accel_cmd = 0.0f;
-        } else {
-            // 進入煞車區
-            accel_cmd = _max_acc;
+
+        // Clamp target setpoints to safety limits
+        if (targ_p < min_pos[i]) targ_p = min_pos[i];
+        if (targ_p > max_pos[i]) targ_p = max_pos[i];
+        if (targ_v > JOINT_PVA_MAX_VEL_RAD_S) targ_v = JOINT_PVA_MAX_VEL_RAD_S;
+        if (targ_v < -JOINT_PVA_MAX_VEL_RAD_S) targ_v = -JOINT_PVA_MAX_VEL_RAD_S;
+        if (targ_a > JOINT_PVA_MAX_ACCEL_RAD_S2) targ_a = JOINT_PVA_MAX_ACCEL_RAD_S2;
+        if (targ_a < -JOINT_PVA_MAX_ACCEL_RAD_S2) targ_a = -JOINT_PVA_MAX_ACCEL_RAD_S2;
+
+        const float curr_p = _state.pos_rad[i];
+        const float curr_v = _state.vel_rad_s[i];
+        const float position_error = targ_p - curr_p;
+        const float error_abs = std::fabs(position_error);
+
+        // Position is the authoritative PVA target.  A zero target velocity
+        // is a terminal condition, not a request to remain at the current
+        // position.  The braking-speed term produces a bounded velocity that
+        // can still converge to the target without overshoot.
+        float position_speed = std::sqrt(2.0f * JOINT_PVA_MAX_ACCEL_RAD_S2 * error_abs);
+        if (position_speed > JOINT_PVA_MAX_VEL_RAD_S) {
+            position_speed = JOINT_PVA_MAX_VEL_RAD_S;
         }
+        float position_velocity = 0.0f;
+        if (error_abs > 0.000001f) {
+            position_velocity = (position_error > 0.0f) ? position_speed : -position_speed;
+        } else {
+            // At the position target, honour a finite terminal velocity only
+            // when explicitly requested; normal endpoint samples use zero.
+            position_velocity = targ_v;
+        }
+
+        // The incoming velocity is a feed-forward/terminal reference.  It may
+        // not suppress the position correction required for convergence.
+        if (error_abs > 0.000001f &&
+            ((position_velocity > 0.0f && targ_v > position_velocity) ||
+             (position_velocity < 0.0f && targ_v < position_velocity))) {
+            position_velocity = targ_v;
+        }
+
+        float requested_acc = (position_velocity - curr_v) / dt_seconds;
+        if (!std::isfinite(requested_acc)) {
+            reset();
+            out_state = _state;
+            return false;
+        }
+        if (requested_acc > JOINT_PVA_MAX_ACCEL_RAD_S2) requested_acc = JOINT_PVA_MAX_ACCEL_RAD_S2;
+        if (requested_acc < -JOINT_PVA_MAX_ACCEL_RAD_S2) requested_acc = -JOINT_PVA_MAX_ACCEL_RAD_S2;
+
+        // Keep the position controller authoritative.  A target acceleration
+        // may add feed-forward only when it reinforces the correction already
+        // required by the position error; it can never cancel or reverse that
+        // correction and strand the interpolator away from its target.
+        float step_a = requested_acc;
+        if (std::fabs(targ_a) > 0.0f &&
+            (std::fabs(position_error) <= 0.000001f ||
+             requested_acc == 0.0f ||
+             ((requested_acc > 0.0f) == (targ_a > 0.0f)))) {
+            step_a += 0.25f * targ_a;
+        }
+        if (step_a > JOINT_PVA_MAX_ACCEL_RAD_S2) step_a = JOINT_PVA_MAX_ACCEL_RAD_S2;
+        if (step_a < -JOINT_PVA_MAX_ACCEL_RAD_S2) step_a = -JOINT_PVA_MAX_ACCEL_RAD_S2;
+
+        float next_v = curr_v + step_a * dt_seconds;
+        if (next_v > JOINT_PVA_MAX_VEL_RAD_S) next_v = JOINT_PVA_MAX_VEL_RAD_S;
+        if (next_v < -JOINT_PVA_MAX_VEL_RAD_S) next_v = -JOINT_PVA_MAX_VEL_RAD_S;
+
+        _state.acc_rad_s2[i] = step_a;
+
+        float next_p = curr_p + curr_v * dt_seconds + 0.5f * step_a * dt_seconds * dt_seconds;
+
+        if (next_p < min_pos[i]) {
+            next_p = min_pos[i];
+            next_v = 0.0f;
+            _state.acc_rad_s2[i] = 0.0f;
+        } else if (next_p > max_pos[i]) {
+            next_p = max_pos[i];
+            next_v = 0.0f;
+            _state.acc_rad_s2[i] = 0.0f;
+        }
+
+        // Snap only after the generated trajectory actually reaches the
+        // target.  This is the explicit completion state used by telemetry;
+        // it is not an endpoint assignment on command receipt.
+        if (error_abs <= 0.0005f && std::fabs(next_v) <= 0.002f) {
+            next_p = targ_p;
+            next_v = targ_v;
+            if (std::fabs(next_v) <= 0.002f) {
+                next_v = 0.0f;
+                _state.acc_rad_s2[i] = 0.0f;
+            }
+        } else if ((position_error > 0.0f && next_p >= targ_p) ||
+                   (position_error < 0.0f && next_p <= targ_p)) {
+            next_p = targ_p;
+            next_v = (std::fabs(targ_v) <= 0.002f) ? 0.0f : targ_v;
+            _state.acc_rad_s2[i] = 0.0f;
+        }
+
+        _state.pos_rad[i] = next_p;
+        _state.vel_rad_s[i] = next_v;
     }
 
-    // 3. 積分計算下一個狀態
-    // v = v0 + a*t
-    _current_vel += accel_cmd * dt;
-    
-    // p = p0 + v*t + 0.5*a*t^2 (為了簡化與穩定，用 p = p + v*dt)
-    float next_pos = _current_pos + _current_vel * dt;
-    if ((dist_to_target > 0.0f && next_pos >= _target_pos) ||
-        (dist_to_target < 0.0f && next_pos <= _target_pos)) {
-        _current_pos = _target_pos;
-        _current_vel = 0.0f;
-        accel_cmd = 0.0f;
-    } else {
-        _current_pos = next_pos;
-    }
-
-    // 4. 到達目標後的收斂處理 (避免在目標點震盪)
-    if (std::fabs(dist_to_target) < 0.1f && std::fabs(_current_vel) < 5.0f) {
-        _current_pos = _target_pos;
-        _current_vel = 0.0f;
-        accel_cmd = 0.0f;
-    }
-
-    _last_acc = accel_cmd;
+    out_state = _state;
+    return true;
 }
-
-// 實體定義
-TrapezoidalPlanner traj_joint1;
-TrapezoidalPlanner traj_joint2;
-TrapezoidalPlanner traj_joint3;

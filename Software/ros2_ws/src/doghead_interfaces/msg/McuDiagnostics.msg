@@ -1,0 +1,18 @@
+uint32 control_deadline_miss_total
+uint32 control_wcet_cycles
+uint32 command_timeout_total
+uint32 invalid_command_total
+uint32 stale_sequence_total
+uint32 session_mismatch_total
+
+uint32 uart_ore_total
+uint32 uart_ne_total
+uint32 uart_fe_total
+uint32 dma_rx_overflow_total
+uint32 transport_tx_timeout_total
+uint32 agent_reconnect_total
+
+uint32 free_heap_bytes
+uint32 minimum_ever_free_heap_bytes
+uint32 control_stack_high_watermark
+uint32 comm_stack_high_watermark

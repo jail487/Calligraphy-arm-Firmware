@@ -21,10 +21,12 @@ extern volatile bool homing_trigger_pin11;
 extern volatile bool homing_trigger_pin12;
 extern volatile bool bypass_homing; // 設為 true 時可直接跳過歸零校正流程
 
-// 微動開關校正後對應的固定角度
-extern const float HOME_THETA1_DEG;
-extern const float HOME_THETA2_DEG;
-extern const float HOME_THETA3_DEG;
+#include "robot_config.h"
+
+// 微動開關校正角度 (映射至 robot_config.h 之 SSoT)
+#define HOME_THETA1_DEG HOME_SWITCH_THETA1_DEG
+#define HOME_THETA2_DEG HOME_SWITCH_THETA2_DEG
+#define HOME_THETA3_DEG HOME_SWITCH_THETA3_DEG
 
 // 歸零搜尋轉速 (馬達本體 RPM，負值代表反轉朝低角度搜尋)
 extern volatile int32_t home_search_rpm_m1;

@@ -9,9 +9,16 @@ doghead_arm/Release/
 *.cyclo
 *.list
 
-# IDE workspace metadata
+# IDE workspace metadata & browse databases
 .metadata/
 doghead_arm/.metadata/
+*.vc.db
+*.vc.db-*
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
 
 # Editor / IDE configurations
 doghead_arm/.settings/
@@ -24,4 +31,5 @@ Desktop.ini
 
 # Manually cloned external dependencies
 doghead_arm/micro_ros_stm32cubemx_utils/
+
 

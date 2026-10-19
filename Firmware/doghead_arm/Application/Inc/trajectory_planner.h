@@ -3,34 +3,33 @@
 
 #ifdef __cplusplus
 #include <cmath>
+#include "robot_interface.h"
 
-class TrapezoidalPlanner {
-public:
-    TrapezoidalPlanner();
-
-    void reset();
-    void setTarget(float start_pos, float target_pos, float max_vel, float max_acc);
-    void update(float target_pos_in, float dt);
-
-    float getPosition() const { return _current_pos; }
-    float getVelocity() const { return _current_vel; }
-    float getAcceleration() const { return _last_acc; }
-
-private:
-    float _current_pos;
-    float _current_vel;
-    float _last_acc;
-    
-    float _target_pos;
-    float _max_vel;
-    float _max_acc;
+struct JointPvaState {
+    float pos_rad[3];
+    float vel_rad_s[3];
+    float acc_rad_s2[3];
+    bool active;
 };
 
-// Joint planner C++ instances
-extern TrapezoidalPlanner traj_joint1;
-extern TrapezoidalPlanner traj_joint2;
-extern TrapezoidalPlanner traj_joint3;
+class JointPvaInterpolator {
+public:
+    JointPvaInterpolator();
+
+    void reset();
+    void init(float p0_rad, float p1_rad, float p2_rad);
+    bool update(const JointPvaPayload_t& target_pva, float dt_seconds, JointPvaState& out_state);
+
+    const JointPvaState& getState() const { return _state; }
+    bool isActive() const { return _state.active; }
+
+private:
+    JointPvaState _state;
+};
+
+extern JointPvaInterpolator g_pva_interpolator;
 
 #endif // __cplusplus
 
 #endif // TRAJECTORY_PLANNER_H
+

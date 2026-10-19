@@ -4,6 +4,7 @@
  */
 
 #include "motor_config.h"
+#include "motor_parameters.h"
 
 // ==========================================================
 // 全域馬達物件實體化 (Application Layer)
@@ -22,15 +23,15 @@ void Motor_System_Config(void) {
     motor_joint_13pin.config.tim_channel = TIM_CHANNEL_1; // PA5 (M1 PWM)
     // Encoder Timer (M1 Encoder)
     motor_joint_13pin.config.htim_encoder = &htim1; // PA8, PA9 (M1 Encoder)
-    motor_joint_13pin.config.enable_port = NULL; // Enable Pin 取消
+    motor_joint_13pin.config.enable_port = NULL; // START Pin 已由硬體固定為 5V；不由 MCU 控制
     motor_joint_13pin.config.enable_pin = 0;
     motor_joint_13pin.config.dir_port = M1_DIR_PORT;
     motor_joint_13pin.config.dir_pin = M1_DIR_PIN; // DIR
 
     // 參數
-    motor_joint_13pin.config.max_rpm = 1710; // 0.25 rps * 114:1 = 1710 rpm (motor shaft)
-    motor_joint_13pin.config.encoder_ppr = 100.0f; // [已確認] 規格為 100 PPR
-    motor_joint_13pin.config.gear_ratio = 114.0f;  // 減速比 114:1
+    motor_joint_13pin.config.max_rpm = 5000; // User-confirmed motor-shaft ceiling
+    motor_joint_13pin.config.encoder_ppr = ENCODER_PPR_AXIS1;
+    motor_joint_13pin.config.gear_ratio = GEAR_RATIO_AXIS1;
     motor_joint_13pin.config.inverted = true; // 設為 true 讓正速度指令朝後旋轉 (校正方向)
     motor_joint_13pin.config.encoder_inverted = false; // 修正：角度朝手臂後方旋轉時累加方向為正
 
@@ -47,15 +48,15 @@ void Motor_System_Config(void) {
     motor_joint_13pin_2.config.htim_encoder = &htim4; // PA8, PA9
 
     // GPIO
-    motor_joint_13pin_2.config.enable_port = NULL; // Enable Pin 取消
+    motor_joint_13pin_2.config.enable_port = NULL; // START Pin 已由硬體固定為 5V；不由 MCU 控制
     motor_joint_13pin_2.config.enable_pin = 0;
     motor_joint_13pin_2.config.dir_port = M2_DIR_PORT;
     motor_joint_13pin_2.config.dir_pin = M2_DIR_PIN; // DIR
 
     // 參數
-    motor_joint_13pin_2.config.max_rpm = 1710; // 0.25 rps * 114:1 = 1710 rpm (motor shaft)
-    motor_joint_13pin_2.config.encoder_ppr = 100.0f; // [已確認] 規格為 100 PPR
-    motor_joint_13pin_2.config.gear_ratio = 114.0f;  // 減速比 114:1
+    motor_joint_13pin_2.config.max_rpm = 5000; // User-confirmed motor-shaft ceiling
+    motor_joint_13pin_2.config.encoder_ppr = ENCODER_PPR_AXIS2;
+    motor_joint_13pin_2.config.gear_ratio = GEAR_RATIO_AXIS2;
     motor_joint_13pin_2.config.inverted = false; // 設為 false 讓正向轉動朝手臂後方旋轉 (校正方向)
     motor_joint_13pin_2.config.encoder_inverted = false; // 預設編碼器方向正常
 
@@ -71,17 +72,16 @@ void Motor_System_Config(void) {
     motor_joint_13pin_3.config.htim_encoder = &htim5; // PA0, PA1 (M3 Encoder)
 
     // GPIO
-    motor_joint_13pin_3.config.enable_port = NULL; // Enable Pin 取消
+    motor_joint_13pin_3.config.enable_port = NULL; // START Pin 已由硬體固定為 5V；不由 MCU 控制
     motor_joint_13pin_3.config.enable_pin = 0;
     motor_joint_13pin_3.config.dir_port = M3_DIR_PORT;
     motor_joint_13pin_3.config.dir_pin = M3_DIR_PIN;
 
-    // 參數
-    motor_joint_13pin_3.config.max_rpm = 1710; // 0.25 rps * 114:1 = 1710 rpm (motor shaft)
-    motor_joint_13pin_3.config.encoder_ppr = 100.0f;
-    motor_joint_13pin_3.config.gear_ratio = 114.0f; // 減速比 114:1
-    motor_joint_13pin_3.config.inverted = false;     // 預設第三軸方向取反
-    motor_joint_13pin_3.config.encoder_inverted = false; // 修正：底座朝左旋轉時角度累加方向為正
+    motor_joint_13pin_3.config.max_rpm = 5000;
+    motor_joint_13pin_3.config.encoder_ppr = ENCODER_PPR_AXIS3;
+    motor_joint_13pin_3.config.gear_ratio = GEAR_RATIO_AXIS3;
+    motor_joint_13pin_3.config.inverted = true;  // 正向轉速 (+RPM) 驅動底座朝逆時針 (朝左) 旋轉
+    motor_joint_13pin_3.config.encoder_inverted = false; // 正轉時 Timer 5 計數自然遞增，不需翻轉符號
 
     Motor_Init(&motor_joint_13pin_3);
 }

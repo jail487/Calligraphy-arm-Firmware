@@ -15,8 +15,56 @@ echo -e "${GREEN}  micro-ROS Agent Docker 啟動工具${NC}"
 echo -e "${GREEN}========================================${NC}"
 
 # 預設參數
-SERIAL_PORT="${1:-/dev/ttyACM0}"
-BAUDRATE="${2:-115200}"
+MODE_OR_PORT="${1:-/dev/ttyACM0}"
+
+# Bridge 模式處理 (TCP 轉接模式)
+if [ "$MODE_OR_PORT" = "bridge" ] || [ "$MODE_OR_PORT" = "--bridge" ]; then
+    TCP_HOST="${2:-host.docker.internal}"
+    TCP_PORT="${3:-8888}"
+    BAUDRATE="${4:-460800}"
+
+    echo -e "${GREEN}[INFO] 啟動 micro-ROS Agent (TCP Bridge 模式)...${NC}"
+    echo -e "${YELLOW}[INFO] TCP Bridge 目標: ${TCP_HOST}:${TCP_PORT}${NC}"
+    echo -e "${YELLOW}[INFO] 鮑率: ${BAUDRATE}${NC}"
+    echo -e "${YELLOW}提示：按 Ctrl+C 停止${NC}"
+    echo ""
+
+    docker run -i --rm \
+        --name doghead_microros_agent_bridge \
+        --net=host \
+        --add-host host.docker.internal:host-gateway \
+        --entrypoint /bin/sh \
+        microros/micro-ros-agent:humble \
+        -c "
+            which socat > /dev/null || (apt-get update && apt-get install -y socat)
+            echo '[INFO] 建立 PTY /dev/ttySTM32 -> tcp:${TCP_HOST}:${TCP_PORT}...'
+            socat pty,link=/dev/ttySTM32,raw,echo=0 tcp:${TCP_HOST}:${TCP_PORT} &
+            SOCAT_PID=\$!
+
+            for i in \$(seq 1 10); do
+                if [ -e /dev/ttySTM32 ] && kill -0 \$SOCAT_PID 2>/dev/null; then
+                    break
+                fi
+                sleep 0.5
+            done
+
+            if [ ! -e /dev/ttySTM32 ] || ! kill -0 \$SOCAT_PID 2>/dev/null; then
+                echo '[ERROR] socat 建立 PTY 連線失敗 (tcp:${TCP_HOST}:${TCP_PORT})' >&2
+                exit 1
+            fi
+
+            echo '[INFO] 啟動 micro_ros_agent 可執行檔...'
+            . /opt/ros/humble/setup.sh 2>/dev/null || true
+            . /uros_ws/install/setup.sh 2>/dev/null || true
+            exec /uros_ws/install/micro_ros_agent/lib/micro_ros_agent/micro_ros_agent serial --dev /dev/ttySTM32 -b ${BAUDRATE} -v6
+        "
+    echo -e "${GREEN}[INFO] micro-ROS Agent (Bridge 模式) 已停止${NC}"
+    exit 0
+fi
+
+# 直連硬體模式 (Direct Hardware Serial Mode)
+SERIAL_PORT="${MODE_OR_PORT}"
+BAUDRATE="${2:-460800}"
 
 echo -e "${YELLOW}[INFO] 串列埠: ${SERIAL_PORT}${NC}"
 echo -e "${YELLOW}[INFO] 鮑率: ${BAUDRATE}${NC}"
@@ -39,7 +87,7 @@ if [ ! -r "$SERIAL_PORT" ] || [ ! -w "$SERIAL_PORT" ]; then
     echo "sudo chmod 666 $SERIAL_PORT"
 fi
 
-echo -e "${GREEN}[INFO] 啟動 micro-ROS Agent (UART 模式)...${NC}"
+echo -e "${GREEN}[INFO] 啟動 micro-ROS Agent (直連 UART 模式)...${NC}"
 echo -e "${YELLOW}提示：按 Ctrl+C 停止${NC}"
 echo ""
 
@@ -47,7 +95,8 @@ echo ""
 # --rm: 容器停止後自動刪除
 # --net=host: 使用主機網路（讓 ROS2 可以發現）
 # --device: 映射串列埠到容器內
-docker run -it --rm \
+docker run -i --rm \
+    --name doghead_microros_agent \
     --net=host \
     --device=${SERIAL_PORT}:/dev/ttySTM32:rw \
     microros/micro-ros-agent:humble \

@@ -85,7 +85,9 @@ extern TaskHandle_t xControlTaskHandle;
 #define SWO_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-
+#ifndef MICROROS_BAUD_RATE
+#define MICROROS_BAUD_RATE 460800U
+#endif
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

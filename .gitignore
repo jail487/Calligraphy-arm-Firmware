@@ -1,9 +1,21 @@
-.vscode/browse.vc.db
-Firmware/.vscode/browse.vc.db
+# ==========================================================
+# Doghead Arm Calligraphy System - Git Ignore Configuration
+# ==========================================================
+
+# IDE & Editor files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.vc.db
+*.vc.db-*
 .metadata/
+
+# STM32 Toolchain & Build Artifacts
 Firmware/doghead_arm/.metadata/
 Firmware/doghead_arm/Debug/
 Firmware/doghead_arm/Release/
+Firmware/doghead_arm/.settings/
 *.elf
 *.bin
 *.hex
@@ -14,3 +26,24 @@ Firmware/doghead_arm/Release/
 *.map
 *.list
 
+# ROS 2 Colcon Build Directories
+Software/ros2_ws/build/
+Software/ros2_ws/install/
+Software/ros2_ws/log/
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Agent & Workspace Cache
+.agent-cowork/
+tmp/
+*.log
+
+# Generated Runtime Logs & Overlay Plots (keep docs/ images intact)
+Software/ros2_ws/*.png
+Software/ros2_ws/*.csv
+Software/ros2_ws/tools/*.png
+Software/ros2_ws/tools/*.csv

@@ -1,0 +1,22 @@
+# rosbag2 recording profile for HIL telemetry & commands
+rosbag2_recorder:
+  ros__parameters:
+    storage_id: "mcap"
+    record:
+      all_topics: false
+      topics:
+        - /joint_states
+        - /doghead/mcu/state
+        - /doghead/mcu/diagnostics
+        - /doghead/mcu/session_control
+        - /doghead/mcu/joint_setpoint
+        - /doghead/mcu/motor_test_command
+        - /doghead/command/joint_setpoint
+        - /doghead/command/motor_test
+        - /doghead/motion/ef_reference
+        - /doghead/motion/status
+        - /doghead/driver/status
+        - /doghead/driver/session_state
+        - /doghead/hil/telemetry_report
+        - /doghead/hil/scenario_status
+        - /doghead/heartbeat

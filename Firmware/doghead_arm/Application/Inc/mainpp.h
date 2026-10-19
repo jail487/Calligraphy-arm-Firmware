@@ -26,6 +26,12 @@ void Robot_Init(void);
 void Robot_Loop(float dt_seconds);
 void Robot_ControlTask_Tick(float dt_seconds);
 
+// 測試用：模擬通訊層注入單軸測試指令
+void Mock_TestCommand_Producer(uint8_t target_axis, int32_t target_rpm);
+
+// 立即清空控制狀態、遮罩、緩存 RPM、PID 與 PVA 狀態的控制中斷處理常數
+void Robot_ControlStateAbort(void);
+
 #ifdef __cplusplus
 }
 #endif

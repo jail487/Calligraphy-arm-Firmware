@@ -210,5 +210,34 @@ void TIM7_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+extern void dma_transport_usart_irq_hook(UART_HandleTypeDef *huart);
+
+/**
+  * @brief This function handles USART2 global interrupt.
+  */
+void USART2_IRQHandler(void)
+{
+  extern UART_HandleTypeDef huart2;
+  dma_transport_usart_irq_hook(&huart2);
+  HAL_UART_IRQHandler(&huart2);
+}
+
+/**
+  * @brief This function handles DMA1 stream5 global interrupt.
+  */
+void DMA1_Stream5_IRQHandler(void)
+{
+  extern DMA_HandleTypeDef hdma_usart2_rx;
+  HAL_DMA_IRQHandler(&hdma_usart2_rx);
+}
+
+/**
+  * @brief This function handles DMA1 stream6 global interrupt.
+  */
+void DMA1_Stream6_IRQHandler(void)
+{
+  extern DMA_HandleTypeDef hdma_usart2_tx;
+  HAL_DMA_IRQHandler(&hdma_usart2_tx);
+}
 /* HAL_TIM_PeriodElapsedCallback 已移動至 main.c 以避免重定義衝突 */
 /* USER CODE END 1 */

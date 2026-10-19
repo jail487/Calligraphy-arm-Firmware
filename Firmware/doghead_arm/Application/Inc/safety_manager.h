@@ -24,13 +24,25 @@ typedef enum {
   ROBOT_FAULT_POSITIVE_LIMIT,
   ROBOT_FAULT_NEGATIVE_LIMIT,
   ROBOT_FAULT_INVALID_COMMAND,
-  ROBOT_FAULT_TRAJECTORY
+  ROBOT_FAULT_TRAJECTORY,
+  ROBOT_FAULT_SOFTWARE_LIMIT,
+  ROBOT_FAULT_DEADLINE_MISS
 } RobotFaultCode_t;
 
 void RobotSafety_Init(void);
 RobotSafetyState_t RobotSafety_GetState(void);
 RobotFaultCode_t RobotSafety_GetFault(void);
 bool RobotSafety_CanDrive(void);
+
+// Physical permission for the explicit HOMING state.  This is separate from
+// normal RUNNING drive and is false in every shadow/output-disabled build.
+bool RobotSafety_CanHomingDrive(void);
+
+// Command execution is intentionally separate from physical drive
+// permission.  SAFE is a valid shadow-execution state when actuator output is
+// compiled off; only CanDrive/CanHomingDrive may authorize non-stop Motor_*
+// output.
+bool RobotSafety_CanExecute(void);
 bool RobotSafety_IsFaulted(void);
 bool RobotSafety_RequestRun(void);
 void RobotSafety_Stop(void);

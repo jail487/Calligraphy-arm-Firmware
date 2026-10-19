@@ -10,7 +10,9 @@
 extern "C" {
 #endif
 
+#ifndef HOST_TEST
 #include "main.h"
+#endif
 #include "nidec_motor_driver.h"
 
 // ==========================================================

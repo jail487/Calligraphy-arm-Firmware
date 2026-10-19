@@ -1,0 +1,48 @@
+# Safety Limits and Configuration Parameters for Doghead Arm
+doghead_driver_node:
+  ros__parameters:
+    protocol_version: 1
+    max_ttl_ms: 1000
+    default_ttl_ms: 250
+    shadow_mode: false
+    actuator_enabled: true  # Master Actuator Output: ENABLED
+    telemetry_timeout_ms: 500
+    joint_names: ["joint1", "joint2", "joint3"]
+    limits:
+      pos_min_rad: [0.0, 1.9198622, -1.5707963]
+      pos_min_rad: [0.0, 1.9198622, 0.0]
+      pos_max_rad: [1.9373155, 3.1415927, 1.5707963]
+      bringup_motor_rpm_max: 5000.0
+
+doghead_motion_node:
+  ros__parameters:
+    protocol_version: 1
+    valid_for_ms: 250
+    trajectory_rate_hz: 100.0
+    measured_state_timeout_ms: 500
+    link_lengths: [0.20, 0.18, 0.10]
+    limits:
+      q1_min: 0.0
+      q1_max: 1.9373155
+      q2_min: 1.9198622
+      q2_max: 3.1415927
+      q3_min: -1.5707963
+      q3_min: 0.0
+      q3_max: 1.5707963
+
+telemetry_validator_node:
+    max_jitter_ms: 10.0
+    rate_tolerance_hz: 2.5
+    telemetry_timeout_ms: 500
+    actuator_hardware_output_enabled: false
+
+hil_scenario_runner_node:
+  ros__parameters:
+    actuator_enabled: false  # HARD SAFETY GATE: Off by default
+    scenario_name: "telemetry_only"
+    limits:
+      pos_min_rad: [1.3962634, 0.0, -3.1415927]
+      pos_max_rad: [3.1415927, 3.1415927, 3.1415927]
+      vel_max_rad_s: [4.593, 4.593, 4.593]
+      accel_max_rad_s2: [15.0, 15.0, 15.0]
+      bringup_motor_rpm_max: 5000.0

@@ -4,34 +4,59 @@
 version: '3.8'
 
 services:
-  # micro-ROS Agent (連接 STM32)
+  # micro-ROS Agent (直連模式: 直接掛載 USB 串列埠 /dev/ttyACM0)
   microros-agent:
+    profiles: ["direct-agent"]
     image: microros/micro-ros-agent:humble
     container_name: doghead_microros_agent
     network_mode: host
     devices:
       - /dev/ttyACM0:/dev/ttySTM32:rw  # 根據實際串列埠修改
-    command: serial --dev /dev/ttySTM32 -b 115200 -v6
+    command: serial --dev /dev/ttySTM32 -b 460800 -v6
     restart: unless-stopped
     tty: true
     stdin_open: true
 
-  # ROS2 開發容器 (選用 - 用於隔離開發環境)
+  # micro-ROS Agent (Bridge 模式: 通過 Windows ST-Link VCP TCP Bridge 轉接)
+  microros-agent-bridge:
+    profiles: ["compose-bridge-agent"]
+    image: microros/micro-ros-agent:humble
+    container_name: doghead_microros_agent_bridge
+    network_mode: host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        which socat > /dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq socat) &&
+        rm -f /dev/ttySTM32 &&
+        socat -d -d pty,link=/dev/ttySTM32,raw,echo=0,mode=666 tcp:host.docker.internal:8888,retry=60,interval=1,nodelay &
+          if [ -e /dev/ttySTM32 ]; then
+            break;
+          fi;
+        if [ ! -e /dev/ttySTM32 ]; then
+          echo '[ERROR] socat failed to create /dev/ttySTM32' >&2;
+          exit 1;
+        fi &&
+        echo '[INFO] Launching micro_ros_agent on /dev/ttySTM32...' &&
+        . /opt/ros/humble/setup.sh 2>/dev/null || true &&
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+  # ROS2 開發與測試容器 (Humble)
   ros2-dev:
     image: osrf/ros:humble-desktop-full
     container_name: doghead_ros2_dev
     network_mode: host
+    ipc: host
     volumes:
-      - ../:/workspace:rw  # 掛載專案目錄
+      - ./:/workspace:rw  # 掛載本專案根目錄
       - /tmp/.X11-unix:/tmp/.X11-unix:rw  # X11 轉發（GUI 支援）
     environment:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
+      - ROS_LOCALHOST_ONLY=0
+    working_dir: /workspace/Software/ros2_ws
     command: /bin/bash -c "source /opt/ros/humble/setup.bash && tail -f /dev/null"
     tty: true
     stdin_open: true
-
-# 網路配置（使用主機網路讓 ROS2 DDS 正常工作）
-networks:
-  default:
-    driver: bridge
