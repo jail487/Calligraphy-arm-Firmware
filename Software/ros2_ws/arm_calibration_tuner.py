@@ -3,8 +3,8 @@
 Doghead Arm - 3-DOF (X, Y, Z + J1, J2, J3) 空間立體閉環控制與多軸獨立調參校準工具
 ---------------------------------------------------------------------------------
 對應論文 2-DOF 3-Parallelogram PPM 機構 + 底座旋轉軸 (Joint 3 / Base):
-- R1: 大臂長度 (113.9 mm)
-- R2: 小臂長度 (113.9 mm)
+- R1: 大臂長度 (140.0 mm)
+- R2: 小臂長度 (140.0 mm)
 - R3: 末端垂直偏移 (0.0 mm)
 - J1_Offset, J2_Offset, J3_Offset 角度偏移補償
 
@@ -76,8 +76,8 @@ class TriAxisCalibrationTuner(Node):
         super().__init__('triaxis_calibration_tuner')
         
         # 連桿幾何長度 (公尺)
-        self.R1 = 0.1139  # 大臂長度 (11.39 cm)
-        self.R2 = 0.1139  # 小臂長度 (11.39 cm)
+        self.R1 = 0.1400  # 大臂長度 (14.00 cm)
+        self.R2 = 0.1400  # 小臂長度 (14.00 cm)
         self.R3 = 0.0000  # 末端垂直偏移 (0.00 cm)
         
         # 兼容別名
